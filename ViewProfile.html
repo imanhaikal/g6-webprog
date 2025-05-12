@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    <title>User Profile</title>
+    <link rel="stylesheet" href="C:\Users\22002\OneDrive\Desktop\UM\Sem 4\Web Programming\HealthTrackingSystem\css\ViewProfile.css" />
+</head>
+<body>
+  <div class="profile-container">
+    <h1>User Profile</h1>
+    <div class="profile-details">
+      <p><strong>First Name:</strong></p>
+      <span id="firstname">Aliff</span>
+      <p><strong>Last Name:</strong></p>
+      <span id="lastname">Ammar</span>
+      <p><strong>Username:</strong></p>
+      <span id="username">AliffAmmar</span>
+      <p><strong>Address:</strong></p>
+      <span id="address">Wangsa Maju</span>
+      <p><strong>Contact:</strong></p>
+      <span id="contact">0172427497</span>
+      <p><strong>Email:</strong></p>
+      <span id="email">22002566@siswa.um.edu.my</span>
+      <p><strong>Date of Birth:</strong></p>
+      <span id="dob">1/5/2025</span>
+    </div>
+    <div class="button-group">
+      <a class="btn update-details" href="UpdateDetails.html" label="Update user details">Update Details</a>
+      <a class="btn update-password" href="UpdatePassword.html" aria-label="Update Pass">Update Password</a>
+      <button id="btndelete" class="btn delete-account">Delete Account</button>
+    </div>
+    <div id="delete-popup" class="popupDelete">
+        <div class="popupStatement">
+            <p>Are you sure you would like to delete your account?</p>
+            <div class="popupButton">
+                <button id="yesbtn" class="buttonYes">Yes</button>
+                <button id="nobtn" class="buttonNo">No</button>
+            </div>
+        </div>
+    </div>
+  </div>
+  <script type="text/javascript"src="C:\Users\22002\OneDrive\Desktop\UM\Sem 4\Web Programming\HealthTrackingSystem\js\ViewProfile.js"></script>
+</body>
+</html>

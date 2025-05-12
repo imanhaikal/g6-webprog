@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Update Profile</title>
+  <link rel="stylesheet" href="C:\Users\22002\OneDrive\Desktop\UM\Sem 4\Web Programming\HealthTrackingSystem\css\UpdateDetails.css" />
+</head>
+<body>
+  <div class="form-container">
+    <h1>Update Profile</h1>
+    <form class="profile-form">
+      <div class="form-group">
+        <label for="firstName">First Name</label>
+        <input type="text" id="firstName" name="firstName" required value="Aliff"></input>
+      </div>
+      <div class="form-group">
+        <label for="lastName">Last Name</label>
+        <input type="text" id="lastName" name="lastName" required value="Ammar"/>
+      </div>
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" required value="AliffAmmar"/>
+      </div>
+      <div class="form-group">
+        <label for="address">Address</label>
+        <input type="text" id="address" name="address" required value="Wangsa Maju"/>
+      </div>
+      <div class="form-group">
+        <label for="contact">Contact</label>
+        <input type="tel" id="contact" name="contact" required value="0123456789"/>
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required value="22002566@siswa.um.edu.my"/>
+      </div>
+      <div class="form-group">
+        <label for="dob">Date of Birth</label>
+        <input type="date" id="dob" name="dob" required value="2025-05-01"/>
+      </div>
+      <button id="btnconfirm" type="submit" class="btn confirm-update">Confirm Update</button>
+    </form>
+  </div>
+  <div id="confirm-popup" class="popupConfirm">
+    <div class="popupStatement">
+        <p>Are you sure you would like to update your details?</p>
+        <div class="popupButton">
+            <button id="yesbtn" class="buttonYes">Yes</button>
+            <button id="nobtn" class="buttonNo">No</button>
+        </div>
+    </div>
+</div>
+  <script type="text/javascript"src="C:\Users\22002\OneDrive\Desktop\UM\Sem 4\Web Programming\HealthTrackingSystem\js\UpdateDetails.js"></script>
+</body>
+</html>

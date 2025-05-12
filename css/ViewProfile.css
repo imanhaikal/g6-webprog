@@ -1,0 +1,116 @@
+body {
+    background-color: #FFFAF1;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #000000;
+    margin: 0;
+    padding: 20px;
+  }
+  
+  .profile-container {
+    max-width: 600px;
+    margin: 0 auto;
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  h1 {
+    text-align: center;
+    color: #000000;
+    margin-bottom: 30px;
+  }
+  
+  .profile-details p {
+    font-size: 1.1rem;
+    margin: 10px 0;
+  }
+  
+  strong {
+    color: #000000;
+  }
+  
+  .button-group {
+    display:inline-block;
+    gap: 12px;
+    margin-top: 30px;
+  }
+  
+  .btn {
+    padding: 12px 20px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.3s ease;
+    color: white;
+  }
+  
+  .update-details {
+    background-color: #00BFA6;
+    text-decoration: none;
+  }
+
+  
+  .update-password {
+    background-color: #2ECC71;
+    text-decoration: none;
+  }
+  
+  .delete-account {
+    background-color: #FF6B6B;
+  }
+  
+  .btn:hover {
+    opacity: 0.9;
+  }
+
+  .popupDelete {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.4);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  .popupStatement{
+    background-color: #FFFAF1;
+    padding: 40px;                     
+    border-radius: 20px;          
+    text-align: center;
+    width: 95%;
+    max-width: 550px;                
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2);
+    color: #2D2D2D;
+    font-size: 1.3rem;   
+  }
+  .popupStatement p{
+    font-size: 1.4rem;
+    margin-bottom: 24px;
+  }
+  .popupButton {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+  }
+  .popupDelete .buttonYes {
+    background-color: #FF6B6B; /* Accent: Coral */
+    color: #fff;
+    padding: 4px 18px;             
+    font-size: 1.3rem;              
+    border-radius: 10px;              
+    font-weight: 600;
+  }
+  .popupDelete .buttonNo{
+    background-color: #00BFA6; /* Primary: Teal */
+    color: #fff;
+    padding: 4px 18px;             
+    font-size: 1.3rem;              
+    border-radius: 10px;              
+    font-weight: 600;
+  }
+  
+  

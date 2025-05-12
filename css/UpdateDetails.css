@@ -1,0 +1,115 @@
+body {
+    background-color: #FFFAF1;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #2D2D2D;
+    margin: 0;
+    padding: 20px;
+  }
+  
+  .form-container {
+    max-width: 600px;
+    margin: 0 auto;
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  h1 {
+    text-align: center;
+    color: #000000;
+    margin-bottom: 30px;
+  }
+  
+  .profile-form .form-group {
+    margin-bottom: 20px;
+  }
+  
+  .profile-form label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #000000;
+  }
+  
+  .profile-form input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 1rem;
+    box-sizing: border-box;
+  }
+  
+  .profile-form input:focus {
+    outline: none;
+    border-color: #00BFA6;
+    box-shadow: 0 0 5px rgba(0, 191, 166, 0.5);
+  }
+  
+  .btn.confirm-update {
+    background-color: #00BFA6;
+    color: white;
+    padding: 14px 20px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 20px;
+    transition: background-color 0.3s ease;
+  }
+  
+  .btn.confirm-update:hover {
+    background-color: #009d8c;
+  }
+
+  .popupConfirm {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.4);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  .popupStatement{
+    background-color: #FFFAF1;
+    padding: 40px;                     
+    border-radius: 20px;          
+    text-align: center;
+    width: 95%;
+    max-width: 550px;                
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2);
+    color: #2D2D2D;
+    font-size: 1.3rem;   
+  }
+  .popupStatement p{
+    font-size: 1.4rem;
+    margin-bottom: 24px;
+  }
+  .popupButton {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+  }
+  .popupConfirm .buttonYes {
+    background-color: #00BFA6;
+    color: #fff;
+    padding: 4px 18px;             
+    font-size: 1.3rem;              
+    border-radius: 10px;              
+    font-weight: 600;
+  }
+  .popupConfirm .buttonNo{
+    background-color: #FF6B6B; 
+    color: #fff;
+    padding: 4px 18px;             
+    font-size: 1.3rem;              
+    border-radius: 10px;              
+    font-weight: 600;
+  }
+  
+  
