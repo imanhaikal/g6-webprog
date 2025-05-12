@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Reminder</title>
+    <link rel="stylesheet" href="notification_reminder.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Notification Reminder</h1>
+        
+        <div class="notification-form">
+            <h2>Create New Reminder</h2>
+            <div class="form-group">
+                <label for="reminder-title">Title:</label>
+                <input type="text" id="reminder-title" placeholder="Enter reminder title">
+            </div>
+            <div class="form-group">
+                <label for="reminder-message">Message:</label>
+                <textarea id="reminder-message" placeholder="Enter reminder message"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="reminder-time">Time:</label>
+                <input type="datetime-local" id="reminder-time">
+            </div>
+            <button id="add-reminder" class="btn">Add Reminder</button>
+        </div>
+        
+        <div class="upcoming-reminders">
+            <h2>Upcoming Reminders</h2>
+            <div id="reminders-list" class="reminders-list">
+                <!-- Reminders will be added here dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification hidden">
+        <div class="notification-content">
+            <span id="notification-close" class="close-btn">&times;</span>
+            <h3 id="notification-title"></h3>
+            <p id="notification-message"></p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
