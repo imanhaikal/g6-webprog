@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="register.css">
+    <title>Register</title>
+</head>
+<body>
+  <main class="container" role="main" label="Register page">
+    <h1>Create Account</h1>
+
+    <form action="login.html" 
+    method="get" 
+    label="Register form" 
+    autocomplete="off" 
+    novalidate 
+    onsubmit="return validateForm(event)">
+        <div>
+        <label for="firstName">First Name</label>
+        <input 
+          id="firstName" 
+          name="firstName" 
+          type="text" 
+          placeholder="Your first name" 
+          autocomplete="given-name" 
+          aria-required="true" 
+          required
+        />
+      </div>
+      <div>
+        <label for="lastName">Last Name</label>
+        <input 
+          id="lastName" 
+          name="lastName" 
+          type="text" 
+          placeholder="Your last name" 
+          autocomplete="family-name" 
+          aria-required="true" 
+          required
+        />
+      </div>
+      <div>
+        <label for="username">Username</label>
+        <input 
+          id="username" 
+          name="username" 
+          type="text" 
+          placeholder="Choose a username" 
+          autocomplete="username" 
+          aria-required="true" 
+          required
+        />
+      </div>
+      <div>
+        <label for="address">Address</label>
+        <input 
+          id="address" 
+          name="address" 
+          type="text" 
+          placeholder="Your home address" 
+          autocomplete="street-address"
+          aria-required="true" 
+          required
+        />
+      </div>
+      <div>
+        <label for="contact">Contact</label>
+        <input 
+          id="contact" 
+          name="contact" 
+          type="tel" 
+          placeholder="Phone number" 
+          autocomplete="tel" 
+          aria-required="true" 
+          required
+        />
+      </div>
+      <div>
+        <label for="email">Email</label>
+        <input 
+          id="email" 
+          name="email" 
+          type="email" 
+          placeholder="Your email address"
+          autocomplete="email" 
+          aria-required="true" 
+          required
+        />
+      </div>
+      <div>
+        <label for="dob">Date of Birth</label>
+        <input 
+          id="dob" 
+          name="dob" 
+          type="date" 
+          aria-required="true" 
+          required
+          max="" 
+          placeholder="Select your birth date"
+        />
+      </div>
+      <div>
+        <label for="password">Password</label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          required
+          placeholder="Password"
+          />
+      </div>
+      <div class="buttons">
+        <button class="register-btn" type="submit" aria-label="Register Button">Register</button>
+      </div>
+    </form>
+  </main>
+  <script type="text/javascript"src="register.js"></script>
+</body>
+</html>

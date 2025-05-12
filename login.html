@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="login.css"> 
+    <title>Login</title>
+</head>
+
+<body>
+  <main class="container" role="main" aria-label="Login page">
+    <h1>Welcome Back</h1>
+    <form aria-label="Login form" autocomplete="off" novalidate>
+      <div>
+        <label for="username">Username</label>
+        <input 
+          id="username" 
+          name="username" 
+          type="text" 
+          placeholder="Enter your username" 
+          autocomplete="username" 
+          aria-required="true"
+          required
+        />
+      </div>
+      <div>
+        <label for="password">Password</label>
+        <input 
+          id="password" 
+          name="password" 
+          type="password" 
+          placeholder="Enter your password" 
+          autocomplete="current-password" 
+          aria-required="true"
+          required
+        />
+      </div>
+      <div class="buttons">
+        <button class="login-btn" type="submit" aria-label="Login Button">Login</button>
+        <a href="register.html" class="button-link" aria-label="Register New Account Button">Register New Account</a>
+      </div>
+    </form>
+  </main>
+
+</body>
+</html>
+
