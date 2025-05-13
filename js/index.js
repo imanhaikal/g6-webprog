@@ -17,6 +17,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     loadPage(page, section);
                 });
             });
+            
+            // Add event delegation for buttons with data-page attributes that might be added dynamically
+            document.addEventListener('click', (e) => {
+                // Check if the clicked element or its parent is a button with data-page attribute
+                const button = e.target.closest('button[data-page]');
+                if (button) {
+                    const page = button.dataset.page;
+                    const section = button.dataset.section;
+                    loadPage(page, section);
+                }
+            });
         });
 
         function loadPage(page, section = null) {

@@ -1,4 +1,3 @@
-
 // Load the template content
     fetch('index.html')
         .then(response => response.text())
@@ -21,14 +20,8 @@
             initializeCharts();
         });
 
-// Handle quick log buttons
-    document.querySelectorAll('[data-page]').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const page = e.target.dataset.page;
-            const section = e.target.dataset.section;
-            loadPage(page, section);
-        });
-    });
+// The following event handlers were moved to index.js for proper delegation
+// Handle quick log buttons functionality is now in index.js
 
     function initializeCharts() {
   const goalChartCanvas = document.getElementById('goalChart');
