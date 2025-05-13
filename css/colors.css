@@ -1,0 +1,24 @@
+:root {
+    /* Color Scheme Variables */
+    --primary-color: #00BFA6; /* Teal */
+    --accent-color: #FF6B6B; /* Coral */
+    --secondary-color: #2ECC71; /* Emerald Green */
+    --background-color: #FFFAF1; /* Light Gray/Off-White */
+    --text-color: #2D2D2D; /* Dark Charcoal Gray */
+    
+    /* Additional derived variables for various UI states */
+    --primary-hover: #00a890;
+    --accent-hover: #ff5252;
+    --secondary-hover: #27ae60;
+    
+    /* Lighter shades for backgrounds */
+    --primary-light: rgba(0, 191, 166, 0.1);
+    --accent-light: rgba(255, 107, 107, 0.1);
+    --secondary-light: rgba(46, 204, 113, 0.1);
+    
+    /* Border colors */
+    --border-color: #e9ecef;
+    
+    /* Card and component backgrounds */
+    --card-bg: #ffffff;
+} 

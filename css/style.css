@@ -1,1 +1,117 @@
+:root {
+    /* Color Scheme Variables */
+    --primary-color: #00BFA6; /* Teal */
+    --accent-color: #FF6B6B; /* Coral */
+    --secondary-color: #2ECC71; /* Emerald Green */
+    --background-color: #FFFAF1; /* Light Gray/Off-White */
+    --text-color: #2D2D2D; /* Dark Charcoal Gray */
+    
+    /* Additional derived variables for various UI states */
+    --primary-hover: #00a890;
+    --accent-hover: #ff5252;
+    --secondary-hover: #27ae60;
+    
+    /* Lighter shades for backgrounds */
+    --primary-light: rgba(0, 191, 166, 0.1);
+    --accent-light: rgba(255, 107, 107, 0.1);
+    --secondary-light: rgba(46, 204, 113, 0.1);
+    
+    /* Border colors */
+    --border-color: #e9ecef;
+    
+    /* Card and component backgrounds */
+    --card-bg: #ffffff;
+}
 
+/* Global styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.5;
+}
+
+/* Button styles */
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+    color: white;
+}
+
+.btn-secondary {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+    color: white;
+}
+
+.btn-secondary:hover,
+.btn-secondary:focus,
+.btn-secondary:active {
+    background-color: var(--secondary-hover);
+    border-color: var(--secondary-hover);
+    color: white;
+}
+
+.btn-accent,
+.btn-danger {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+}
+
+.btn-accent:hover,
+.btn-accent:focus,
+.btn-accent:active,
+.btn-danger:hover,
+.btn-danger:focus,
+.btn-danger:active {
+    background-color: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: white;
+}
+
+/* Text colors */
+.text-primary {
+    color: var(--primary-color) !important;
+}
+
+.text-secondary {
+    color: var(--secondary-color) !important;
+}
+
+.text-accent,
+.text-danger {
+    color: var(--accent-color) !important;
+}
+
+/* Background colors */
+.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+.bg-secondary {
+    background-color: var(--secondary-color) !important;
+}
+
+.bg-accent {
+    background-color: var(--accent-color) !important;
+}
+
+.bg-light {
+    background-color: var(--background-color) !important;
+}
+
+/* Form elements */
+.form-control:focus, 
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem var(--primary-light);
+}
