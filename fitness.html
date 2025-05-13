@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Management - Health and Fitness Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <!-- Include the template header and navigation -->
+    <div id="templateContent"></div>
+
+    <!-- Fitness Tracker Content -->
+    <div class="page-content" id="fitness">
+                <div class="card mb-4">
+                    <div class="card-header-custom" id="fitness-log-activities">Log Activities</div>
+                    <div class="card-body">
+                        <form class="row g-3 align-items-end mb-3">
+                            <div class="col-md-3">
+                                <label for="activityType" class="form-label">Activity Type</label>
+                                <select id="activityType" class="form-select">
+                                    <option selected>Choose...</option>
+                                    <option>Running</option>
+                                    <option>Cycling</option>
+                                    <option>Swimming</option>
+                                    <option>Weight Training</option>
+                                    <option>Yoga</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="activityIntensity" class="form-label">Intensity</label>
+                                <select id="activityIntensity" class="form-select">
+                                    <option selected>Choose...</option>
+                                    <option>Light</option>
+                                    <option>Moderate</option>
+                                    <option>Intense</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="activityDuration" class="form-label">Duration (min)</label>
+                                <input type="number" class="form-control" id="activityDuration">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="activityDate" class="form-label">Date</label>
+                                <input type="date" class="form-control" id="activityDate" value="2024-07-28">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary w-100">Log Activity</button>
+                            </div>
+                        </form>
+                        <h6>Logged Activities:</h6>
+                        <ul class="list-group">
+                            <li class="list-group-item">Running - Moderate - 30 mins - July 28, 2024</li>
+                            <li class="list-group-item">Weight Training - Intense - 60 mins - July 27, 2024</li>
+                        </ul>
+                    </div>
+                </div>
+                 <div class="card mb-4">
+                    <div class="card-header-custom" id="fitness-log-workout">Log Workout</div>
+                    <div class="card-body">
+                        <form class="row g-3 align-items-end mb-3">
+                             <div class="col-md-4">
+                                <label for="workoutTemplate" class="form-label">Workout Template</label>
+                                <select id="workoutTemplate" class="form-select">
+                                    <option selected>Choose existing or custom...</option>
+                                    <option>Leg Day Routine</option>
+                                    <option>Upper Body Blast</option>
+                                    <option>Custom Workout</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="workoutDuration" class="form-label">Duration (min)</label>
+                                <input type="number" class="form-control" id="workoutDuration">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="workoutDate" class="form-label">Date</label>
+                                <input type="date" class="form-control" id="workoutDate" value="2024-07-28">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-success w-100">Log Workout</button>
+                            </div>
+                        </form>
+                        <h6>Workout Streak Tracker:</h6>
+                        <p>You've worked out <strong>3 days</strong> in a row! Keep the streak alive!</p>
+                        <div class="progress">
+                          <div class="progress-bar bg-warning" role="progressbar" style="width: 60%" aria-valuenow="3" aria-valuemin="0" aria-valuemax="5">3/5 for weekly goal</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header-custom" id="fitness-log-steps">Log Steps / Geo-Tracking</div>
+                    <div class="card-body">
+                        <p>Geo-Tracking (Map-Based): Check for run and cycling routes around their area (Simulated).</p>
+                        <form class="row g-3 align-items-end mb-3">
+                            <div class="col-md-4">
+                                <label for="stepsCount" class="form-label">Number of Steps</label>
+                                <input type="number" class="form-control" id="stepsCount">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="stepsRoute" class="form-label">Route (Optional)</label>
+                                <input type="text" class="form-control" id="stepsRoute" placeholder="e.g., Park Loop">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="stepsDate" class="form-label">Date</label>
+                                <input type="date" class="form-control" id="stepsDate" value="2024-07-28">
+                            </div>
+                             <div class="col-md-2">
+                                <button type="submit" class="btn btn-info w-100 text-white">Log Steps</button>
+                            </div>
+                        </form>
+                        <img src="https://via.placeholder.com/600x250.png?text=Map+Route+Placeholder+(Simulated)" class="img-fluid mt-3" alt="Map Placeholder">
+                    </div>
+                </div>
+            </div>
+
+    <script src="js/script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+</body>
+</html> 

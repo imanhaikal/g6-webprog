@@ -4,30 +4,37 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Progress Charts</title>
-  <link rel="stylesheet" href="css/progress.css">
+  <link rel="stylesheet" href="index.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 <body>
 
-  <div class="container">
-    <h1>Progress Charts</h1>
+  <div id="templateContent"></div>
 
-    <section class="chart-section">
-      <h2>Goal Progress</h2>
-      <canvas id="goalChart"></canvas>
-    </section>
-
-    <section class="chart-section">
-      <h2>Weekly Comparison</h2>
-      <canvas id="weeklyChart"></canvas>
-    </section>
-
-    <section class="chart-section">
-      <h2>Weight Tracker</h2>
-      <canvas id="weightChart"></canvas>
-    </section>
+  <div class="page-content" id="progress">
+    <div class="card mb-4">
+      <div class="card-header-custom">Goal Charts</div>
+        <div class="canvas">
+          <canvas id="goalChart"></canvas>
+        </div>
+    </div>
+  
+    <div class="card mb-4">
+      <div class="card-header-custom">Weight Charts</div>
+        <div class="canvas">
+          <canvas id="weightChart"></canvas>
+        </div>
+    </div>
+  
+    <div class="card mb-4">
+      <div class="card-header-custom">Weekly Charts</div>
+        <div class="canvas">
+          <canvas id="weeklyChart"></canvas>
+        </div>
+    </div>
   </div>
-
-  <script src="js/progress.js"></script>
+  
+  <script src="js/script.js"></script>
 </body>
 </html>

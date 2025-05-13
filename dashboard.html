@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Health and Fitness Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Include the template styles -->
+    <link rel="stylesheet" href="template.css">
+</head>
+<body>
+    <!-- Include the template header and navigation -->
+    <div id="templateContent"></div>
+
+    <!-- Dashboard Content -->
+    <div class="page-content" id="dashboard">
+        <h4 class="mb-3">Welcome back, User!</h4>
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-4">
+                <div class="card text-center">
+                    <h6 class="card-title-custom">Today's Steps</h6>
+                    <div class="circle-progress">
+                        <div class="circle-progress-inner">
+                            <div class="circle-progress-number">7523</div>
+                            <div class="circle-progress-subtext">/ 10,000</div>
+                        </div>
+                    </div>
+                    <p class="text-muted">Keep it up!</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="card">
+                    <h6 class="card-title-custom">Calories Burned</h6>
+                    <h3 class="text-success">1850 <small class="text-muted fs-6">kcal</small></h3>
+                    <p class="mb-1">Target: 2200 kcal</p>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: 84%;" aria-valuenow="84" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="card bg-primary text-white">
+                    <h6 class="card-title-custom text-white">Upcoming Workout</h6>
+                    <p class="mb-1"><i class="bi bi-calendar-event"></i> Tomorrow, 10:00 AM</p>
+                    <h5>Leg Day Routine</h5>
+                    <button class="btn btn-light btn-sm mt-2">View Details</button>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-8">
+                <div class="card">
+                    <h6 class="card-title-custom">Weekly Activity</h6>
+                    <p>Chart placeholder for weekly activity (e.g., steps, active minutes)</p>
+                    <img src="https://via.placeholder.com/600x200.png?text=Weekly+Activity+Chart" class="img-fluid" alt="Weekly Chart">
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="card">
+                    <h6 class="card-title-custom">Quick Log</h6>
+                    <button class="btn btn-outline-primary w-100 mb-2" data-page="fitness" data-section="log-activities"><i class="bi bi-activity"></i> Log Activity</button>
+                    <button class="btn btn-outline-success w-100 mb-2" data-page="fitness" data-section="log-workout"><i class="bi bi-fire"></i> Log Workout</button>
+                    <button class="btn btn-outline-info w-100" data-page="nutrition" data-section="calorie-calculator"><i class="bi bi-cup-straw"></i> Log Meal</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/index.js"></script>
+    
+</body>
+</html> 

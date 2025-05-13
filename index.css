@@ -1,0 +1,170 @@
+body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #F0F4F8;
+        }
+
+        .sidebar {
+            width: 280px;
+            background-color: #fff !important;
+            border-right: 1px solid #e9ecef;
+            padding: 1.5rem 1rem;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            overflow-y: auto;
+        }
+
+        .main-content-wrapper {
+            margin-left: 280px;
+            padding: 1.5rem;
+            width: calc(100% - 280px);
+            background-color: #F0F4F8;
+            min-height: 100vh;
+        }
+        
+        .sidebar-logo svg path {
+            fill: #34D399; /* Minty green */
+        }
+        .sidebar-logo .fw-bold {
+            color: #343A40;
+        }
+
+        .nav-pills .nav-link {
+            color: #555;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 0.95rem;
+            margin-bottom: 0.25rem;
+            cursor: pointer;
+        }
+        .nav-pills .nav-link.active, .nav-pills .show>.nav-link {
+            background-color: #e0f7f0 !important;
+            color: #34D399 !important;
+            font-weight: 500;
+        }
+        .nav-pills .nav-link:hover:not(.active) {
+            background-color: #f8f9fa;
+        }
+        .nav-pills .nav-link .bi {
+            margin-right: 10px;
+            font-size: 1.1em;
+        }
+        .nav-pills .sub-nav-link {
+            font-size: 0.85rem;
+            padding-left: 2.5rem; /* Indent sub-items */
+        }
+
+
+        .header {
+            background-color: #fff;
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid #e9ecef;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        }
+        .header-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #343A40;
+        }
+        .header .user-avatar {
+            width: 36px;
+            height: 36px;
+        }
+        .btn-custom-accent {
+            background-color: #FF7B89; /* Salmon pink */
+            color: white;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .btn-custom-accent:hover {
+            background-color: #ff6372;
+            color: white;
+        }
+
+        .card {
+            border-radius: 1rem;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.05);
+            border: none;
+            padding: 1.25rem;
+        }
+        .card-header-custom {
+            background-color: transparent;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .card-title-custom {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #343A40;
+            margin-bottom: 1rem;
+        }
+        .form-label {
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        /* Specific page content initially hidden */
+        .page-content {
+            display: none;
+        }
+        .page-content.active {
+            display: block;
+        }
+
+        .circle-progress {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: conic-gradient(#34D399 75%, #e9ecef 75%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            margin: 1rem auto;
+        }
+        .circle-progress-inner {
+            width: 120px;
+            height: 120px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .circle-progress-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #343A40;
+        }
+        .circle-progress-subtext {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+
+        .team-table th, .team-table td {
+            vertical-align: middle;
+        }
+        .list-group-item-action {
+            cursor: pointer;
+        }
+
+         .chart-section {
+            margin-bottom: 50px;
+        }
+  
+        canvas {
+            width: 100% !important;
+            height: auto !important;
+        }
