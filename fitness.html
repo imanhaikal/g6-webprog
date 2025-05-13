@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profile Management - Health and Fitness Tracker</title>
+    <title>Fitness Tracker - Health and Fitness Tracker</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="css/fitness.css">
 </head>
 <body>
     <!-- Include the template header and navigation -->
@@ -14,109 +15,319 @@
 
     <!-- Fitness Tracker Content -->
     <div class="page-content" id="fitness">
-                <div class="card mb-4">
-                    <div class="card-header-custom" id="fitness-log-activities">Log Activities</div>
-                    <div class="card-body">
-                        <form class="row g-3 align-items-end mb-3">
-                            <div class="col-md-3">
-                                <label for="activityType" class="form-label">Activity Type</label>
-                                <select id="activityType" class="form-select">
-                                    <option selected>Choose...</option>
-                                    <option>Running</option>
-                                    <option>Cycling</option>
-                                    <option>Swimming</option>
-                                    <option>Weight Training</option>
-                                    <option>Yoga</option>
-                                </select>
+        <h1 class="mb-4"><i class="bi bi-bicycle me-2"></i>Fitness Tracker</h1>
+        <p class="lead mb-4">Track your workouts, activities, and steps to reach your fitness goals.</p>
+
+        <!-- Log Activities Section -->
+        <div class="card mb-4">
+            <div class="card-header-custom" id="fitness-log-activities"><i class="bi bi-activity me-2"></i>Log Activities</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-7 mb-4 mb-lg-0">
+                        <form id="logActivityForm">
+                            <div class="mb-3">
+                                <label for="activityName" class="form-label">Activity Name</label>
+                                <input type="text" class="form-control" id="activityName" placeholder="e.g., Running, Swimming, Yoga">
                             </div>
-                            <div class="col-md-3">
-                                <label for="activityIntensity" class="form-label">Intensity</label>
-                                <select id="activityIntensity" class="form-select">
-                                    <option selected>Choose...</option>
-                                    <option>Light</option>
-                                    <option>Moderate</option>
-                                    <option>Intense</option>
-                                </select>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="activityCategory" class="form-label">Category</label>
+                                    <select class="form-select" id="activityCategory">
+                                        <option selected disabled>Select category</option>
+                                        <option value="cardio">Cardio</option>
+                                        <option value="strength">Strength Training</option>
+                                        <option value="flexibility">Flexibility</option>
+                                        <option value="sports">Sports</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="activityIntensity" class="form-label">Intensity Level</label>
+                                    <select class="form-select" id="activityIntensity">
+                                        <option selected disabled>Select intensity</option>
+                                        <option value="light">Light</option>
+                                        <option value="moderate">Moderate</option>
+                                        <option value="intense">Intense</option>
+                                    </select>
+                                </div>
                             </div>
-                            <div class="col-md-2">
-                                <label for="activityDuration" class="form-label">Duration (min)</label>
-                                <input type="number" class="form-control" id="activityDuration">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="activityDuration" class="form-label">Duration (minutes)</label>
+                                    <input type="number" class="form-control" id="activityDuration" min="1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="activityCalories" class="form-label">Calories Burned (optional)</label>
+                                    <input type="number" class="form-control" id="activityCalories" min="0">
+                                </div>
                             </div>
-                            <div class="col-md-2">
-                                <label for="activityDate" class="form-label">Date</label>
-                                <input type="date" class="form-control" id="activityDate" value="2024-07-28">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="activityDate" class="form-label">Date</label>
+                                    <input type="date" class="form-control" id="activityDate">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="activityTime" class="form-label">Time</label>
+                                    <input type="time" class="form-control" id="activityTime">
+                                </div>
                             </div>
-                            <div class="col-md-2">
-                                <button type="submit" class="btn btn-primary w-100">Log Activity</button>
+                            <div class="mb-3">
+                                <label for="activityNotes" class="form-label">Notes (optional)</label>
+                                <textarea class="form-control" id="activityNotes" rows="2"></textarea>
                             </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i>Log Activity
+                            </button>
                         </form>
-                        <h6>Logged Activities:</h6>
-                        <ul class="list-group">
-                            <li class="list-group-item">Running - Moderate - 30 mins - July 28, 2024</li>
-                            <li class="list-group-item">Weight Training - Intense - 60 mins - July 27, 2024</li>
-                        </ul>
                     </div>
-                </div>
-                 <div class="card mb-4">
-                    <div class="card-header-custom" id="fitness-log-workout">Log Workout</div>
-                    <div class="card-body">
-                        <form class="row g-3 align-items-end mb-3">
-                             <div class="col-md-4">
-                                <label for="workoutTemplate" class="form-label">Workout Template</label>
-                                <select id="workoutTemplate" class="form-select">
-                                    <option selected>Choose existing or custom...</option>
-                                    <option>Leg Day Routine</option>
-                                    <option>Upper Body Blast</option>
-                                    <option>Custom Workout</option>
-                                </select>
+                    <div class="col-lg-5">
+                        <h5 class="mb-3"><i class="bi bi-list-check me-2"></i>Recent Activities</h5>
+                        <div class="list-group mb-3">
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">Running</h6>
+                                    <small class="text-muted">Today, 6:30 AM</small>
+                                </div>
+                                <p class="mb-1">Cardio • Intense • 30 min</p>
+                                <small class="text-muted">320 calories burned</small>
                             </div>
-                            <div class="col-md-3">
-                                <label for="workoutDuration" class="form-label">Duration (min)</label>
-                                <input type="number" class="form-control" id="workoutDuration">
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">Yoga</h6>
+                                    <small class="text-muted">Yesterday, 7:00 PM</small>
+                                </div>
+                                <p class="mb-1">Flexibility • Moderate • 45 min</p>
+                                <small class="text-muted">180 calories burned</small>
                             </div>
-                            <div class="col-md-3">
-                                <label for="workoutDate" class="form-label">Date</label>
-                                <input type="date" class="form-control" id="workoutDate" value="2024-07-28">
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">Strength Training</h6>
+                                    <small class="text-muted">2 days ago, 5:15 PM</small>
+                                </div>
+                                <p class="mb-1">Strength • Intense • 50 min</p>
+                                <small class="text-muted">400 calories burned</small>
                             </div>
-                            <div class="col-md-2">
-                                <button type="submit" class="btn btn-success w-100">Log Workout</button>
-                            </div>
-                        </form>
-                        <h6>Workout Streak Tracker:</h6>
-                        <p>You've worked out <strong>3 days</strong> in a row! Keep the streak alive!</p>
-                        <div class="progress">
-                          <div class="progress-bar bg-warning" role="progressbar" style="width: 60%" aria-valuenow="3" aria-valuemin="0" aria-valuemax="5">3/5 for weekly goal</div>
                         </div>
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="card-header-custom" id="fitness-log-steps">Log Steps / Geo-Tracking</div>
-                    <div class="card-body">
-                        <p>Geo-Tracking (Map-Based): Check for run and cycling routes around their area (Simulated).</p>
-                        <form class="row g-3 align-items-end mb-3">
-                            <div class="col-md-4">
-                                <label for="stepsCount" class="form-label">Number of Steps</label>
-                                <input type="number" class="form-control" id="stepsCount">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="stepsRoute" class="form-label">Route (Optional)</label>
-                                <input type="text" class="form-control" id="stepsRoute" placeholder="e.g., Park Loop">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="stepsDate" class="form-label">Date</label>
-                                <input type="date" class="form-control" id="stepsDate" value="2024-07-28">
-                            </div>
-                             <div class="col-md-2">
-                                <button type="submit" class="btn btn-info w-100 text-white">Log Steps</button>
-                            </div>
-                        </form>
-                        <img src="https://via.placeholder.com/600x250.png?text=Map+Route+Placeholder+(Simulated)" class="img-fluid mt-3" alt="Map Placeholder">
+                        <a href="#" class="btn btn-outline-success btn-sm">View All Activities</a>
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Log Workout Section -->
+        <div class="card mb-4">
+            <div class="card-header-custom" id="fitness-log-workout"><i class="bi bi-stopwatch me-2"></i>Log Workout</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-7 mb-4 mb-lg-0">
+                        <form id="logWorkoutForm">
+                            <div class="mb-3">
+                                <label for="workoutTemplate" class="form-label">Workout Template</label>
+                                <select class="form-select" id="workoutTemplate">
+                                    <option selected disabled>Select a template or create new</option>
+                                    <option value="legDay">Leg Day Routine</option>
+                                    <option value="upperBody">Upper Body Workout</option>
+                                    <option value="fullBody">Full Body Circuit</option>
+                                    <option value="cardioMix">Cardio Mix</option>
+                                    <option value="custom">Create Custom Template</option>
+                                </select>
+                            </div>
+                            <div id="customTemplateFields" class="d-none">
+                                <div class="mb-3">
+                                    <label for="customTemplateName" class="form-label">Template Name</label>
+                                    <input type="text" class="form-control" id="customTemplateName" placeholder="e.g., My HIIT Workout">
+                                </div>
+                                <div class="mb-3">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="addExerciseBtn">
+                                        <i class="bi bi-plus-circle me-2"></i>Add Exercise
+                                    </button>
+                                </div>
+                                <div id="exerciseFields">
+                                    <!-- Exercise fields will be added here dynamically -->
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="workoutDuration" class="form-label">Total Duration (minutes)</label>
+                                    <input type="number" class="form-control" id="workoutDuration" min="1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="workoutCalories" class="form-label">Calories Burned (optional)</label>
+                                    <input type="number" class="form-control" id="workoutCalories" min="0">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="workoutDate" class="form-label">Date</label>
+                                    <input type="date" class="form-control" id="workoutDate">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="workoutTime" class="form-label">Time</label>
+                                    <input type="time" class="form-control" id="workoutTime">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="workoutNotes" class="form-label">Notes (optional)</label>
+                                <textarea class="form-control" id="workoutNotes" rows="2"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i>Log Workout
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-lg-5">
+                        <div class="mb-4 text-center">
+                            <h5 class="mb-3"><i class="bi bi-fire me-2"></i>Workout Streak</h5>
+                            <div class="streak-container">
+                                <div class="streak-number display-1 fw-bold text-warning">8</div>
+                                <p class="lead mb-1">Days</p>
+                                <div class="streak-details">
+                                    <span class="badge bg-warning text-dark mb-2">Personal Best!</span>
+                                    <p class="mb-0">Keep it up! You're on a roll!</p>
+                                </div>
+                            </div>
+                        </div>
+                        <h5 class="mb-3"><i class="bi bi-list-check me-2"></i>Recent Workouts</h5>
+                        <div class="list-group mb-3">
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">Leg Day Routine</h6>
+                                    <small class="text-muted">Today, 6:00 PM</small>
+                                </div>
+                                <p class="mb-1">60 min • 450 calories</p>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">Upper Body Workout</h6>
+                                    <small class="text-muted">Yesterday, 5:30 PM</small>
+                                </div>
+                                <p class="mb-1">45 min • 380 calories</p>
+                            </div>
+                        </div>
+                        <a href="#" class="btn btn-outline-success btn-sm">View All Workouts</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Steps Section -->
+        <div class="card mb-4">
+            <div class="card-header-custom" id="fitness-log-steps"><i class="bi bi-map me-2"></i>Log Steps</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-7 mb-4 mb-lg-0">
+                        <form id="logStepsForm">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="stepsCount" class="form-label">Number of Steps</label>
+                                    <input type="number" class="form-control" id="stepsCount" min="1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="stepsDistance" class="form-label">Distance (km)</label>
+                                    <input type="number" class="form-control" id="stepsDistance" min="0" step="0.01">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="stepsDate" class="form-label">Date</label>
+                                    <input type="date" class="form-control" id="stepsDate">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="stepsDuration" class="form-label">Duration (minutes)</label>
+                                    <input type="number" class="form-control" id="stepsDuration" min="1">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="routeType" class="form-label">Route Type</label>
+                                <select class="form-select" id="routeType">
+                                    <option selected disabled>Select route type</option>
+                                    <option value="walking">Walking</option>
+                                    <option value="running">Running</option>
+                                    <option value="hiking">Hiking</option>
+                                    <option value="cycling">Cycling</option>
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="" id="useGeotracking">
+                                    <label class="form-check-label" for="useGeotracking">
+                                        Use geo-tracking for this route
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="mapContainer" class="mb-3 d-none">
+                                <label class="form-label">Select Route on Map</label>
+                                <div class="ratio ratio-16x9 border rounded" style="height: 300px;">
+                                    <div class="bg-light d-flex align-items-center justify-content-center">
+                                        <p class="text-muted"><i class="bi bi-map me-2"></i>Map will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i>Log Steps
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-lg-5">
+                        <div class="mb-4 text-center">
+                            <h5 class="mb-3"><i class="bi bi-shoe-prints me-2"></i>Today's Step Count</h5>
+                            <div class="step-counter">
+                                <span class="display-1 fw-bold text-primary">8,512</span>
+                                <p class="lead mb-0">steps</p>
+                            </div>
+                            <div class="progress mt-3">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: 85%;" aria-valuenow="85" aria-valuemin="0" aria-valuemax="100">85%</div>
+                            </div>
+                            <p class="text-muted mt-2 mb-0">Daily Goal: 10,000 steps</p>
+                        </div>
+                        <h5 class="mb-3"><i class="bi bi-compass me-2"></i>Popular Routes Nearby</h5>
+                        <div class="list-group mb-3">
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">Petaling Jaya</h6>
+                                    <span class="badge bg-success rounded-pill">Easy</span>
+                                </div>
+                                <p class="mb-1">Running • 5.2 km • ~35 min</p>
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-star-fill text-warning"></i>
+                                    <small>4.8 (120 ratings)</small>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">Rimba Ilmu</h6>
+                                    <span class="badge bg-warning text-dark rounded-pill">Moderate</span>
+                                </div>
+                                <p class="mb-1">Hiking • 8.6 km • ~90 min</p>
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-star-fill text-warning"></i>
+                                    <small>4.6 (85 ratings)</small>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">Bukit Cinta</h6>
+                                    <span class="badge bg-danger rounded-pill">Challenging</span>
+                                </div>
+                                <p class="mb-1">Cycling • 12.8 km • ~75 min</p>
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-star-fill text-warning"></i>
+                                    <small>4.7 (62 ratings)</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="#" class="btn btn-outline-info btn-sm">View All Routes</a>
+                            <a href="#" class="btn btn-outline-success btn-sm">Create New Route</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="js/script.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    
+    <script src="js/fitness.js"></script>
 </body>
 </html> 
