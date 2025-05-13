@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', () => {
             // Load default page (dashboard)
             loadPage('dashboard');
@@ -58,6 +57,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         tooltipTriggerList.map(function (tooltipTriggerEl) {
                             return new bootstrap.Tooltip(tooltipTriggerEl);
                         });
+                        
+                        // Initialize charts if we're on the progress page
+                        if (page === 'progress') {
+                            initializeCharts();
+                        }
                     } else {
                         throw new Error('Content element not found in the loaded page');
                     }
@@ -72,6 +76,114 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p class="mb-0">Error details: ${error.message}</p>
                         </div>`;
                 });
+        }
+
+        // Function to initialize charts
+        function initializeCharts() {
+            // Goal Progress
+            if (document.getElementById('goalChart')) {
+                new Chart(document.getElementById('goalChart'), {
+                    type: 'doughnut',
+                    data: {
+                      labels: ['Completed', 'Remaining'],
+                      datasets: [{
+                        data: [75, 25],
+                        backgroundColor: ['#28a745', '#ddd']
+                      }]
+                    },
+                    options: {
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: 'top',
+                        }
+                      }
+                    }
+                });
+            }
+            
+            // Weekly Comparison
+            if (document.getElementById('weeklyChart')) {
+                new Chart(document.getElementById('weeklyChart'), {
+                    type: 'bar',
+                    data: {
+                      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                      datasets: [{
+                        label: 'This Week',
+                        backgroundColor: '#007bff',
+                        data: [3000, 5000, 4000, 6500, 7000, 8000, 7500]
+                      }, {
+                        label: 'Last Week',
+                        backgroundColor: '#6c757d',
+                        data: [2500, 4200, 3900, 6000, 6700, 7000, 7200]
+                      }]
+                    },
+                    options: {
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      scales: {
+                        y: { 
+                          beginAtZero: true,
+                          grid: {
+                            display: true
+                          }
+                        },
+                        x: {
+                          grid: {
+                            display: false
+                          }
+                        }
+                      },
+                      plugins: {
+                        legend: {
+                          position: 'top',
+                          align: 'center'
+                        }
+                      }
+                    }
+                });
+            }
+            
+            // Weight Tracker
+            if (document.getElementById('weightChart')) {
+                new Chart(document.getElementById('weightChart'), {
+                    type: 'line',
+                    data: {
+                      labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                      datasets: [{
+                        label: 'Weight (kg)',
+                        borderColor: '#dc3545',
+                        data: [70, 69.5, 69, 68.7],
+                        fill: false,
+                        tension: 0.2,
+                        pointBackgroundColor: '#dc3545'
+                      }]
+                    },
+                    options: {
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      scales: {
+                        y: {
+                          beginAtZero: false,
+                          grid: {
+                            display: true
+                          }
+                        },
+                        x: {
+                          grid: {
+                            display: false
+                          }
+                        }
+                      },
+                      plugins: {
+                        legend: {
+                          position: 'top'
+                        }
+                      }
+                    }
+                });
+            }
         }
 
         // Handle login/register/logout

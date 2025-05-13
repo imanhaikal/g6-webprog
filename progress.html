@@ -13,28 +13,48 @@
   <div id="templateContent"></div>
 
   <div class="page-content" id="progress">
-    <div class="card mb-4">
-      <div class="card-header-custom">Goal Charts</div>
-        <div class="canvas">
-          <canvas id="goalChart"></canvas>
+    <div class="row">
+      <div class="col-md-6 mb-4">
+        <div class="card h-100 shadow-sm">
+          <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">Goal Progress</h5>
+          </div>
+          <div class="card-body d-flex align-items-center justify-content-center">
+            <div class="chart-container">
+              <canvas id="goalChart"></canvas>
+            </div>
+          </div>
         </div>
+      </div>
+      
+      <div class="col-md-6 mb-4">
+        <div class="card h-100 shadow-sm">
+          <div class="card-header bg-danger text-white">
+            <h5 class="card-title mb-0">Weight Tracker</h5>
+          </div>
+          <div class="card-body d-flex align-items-center justify-content-center">
+            <div class="chart-container">
+              <canvas id="weightChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  
-    <div class="card mb-4">
-      <div class="card-header-custom">Weight Charts</div>
-        <div class="canvas">
-          <canvas id="weightChart"></canvas>
+    
+    <div class="row">
+      <div class="col-12 mb-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-info text-white">
+            <h5 class="card-title mb-0">Weekly Activity Comparison</h5>
+          </div>
+          <div class="card-body">
+            <div class="chart-container" style="height: 300px !important;">
+              <canvas id="weeklyChart"></canvas>
+            </div>
+          </div>
         </div>
-    </div>
-  
-    <div class="card mb-4">
-      <div class="card-header-custom">Weekly Charts</div>
-        <div class="canvas">
-          <canvas id="weeklyChart"></canvas>
-        </div>
+      </div>
     </div>
   </div>
-  
-  <script src="js/progress.js"></script>
 </body>
 </html>

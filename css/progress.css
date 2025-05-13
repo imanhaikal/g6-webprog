@@ -22,8 +22,47 @@ body {
     margin-bottom: 50px;
   }
   
+  /* Progress charts styling */
+  .chart-container {
+    position: relative;
+    margin: auto;
+    height: 250px !important;
+    width: 100%;
+  }
+  
+  .card {
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+  
+  .card-header {
+    font-weight: 500;
+  }
+  
+  /* Make charts responsive */
   canvas {
-    width: 100% !important;
-    height: auto !important;
+    max-width: 100%;
+  }
+  
+  /* Additional progress page specific styling */
+  #progress .card-body {
+    padding: 1.25rem;
+  }
+  
+  #progress .card-header {
+    padding: 0.75rem 1.25rem;
+  }
+  
+  /* Fix chart header background colors */
+  #progress .card-header.bg-primary {
+    background-color: #0d6efd !important;
+  }
+  
+  #progress .card-header.bg-danger {
+    background-color: #dc3545 !important;
+  }
+  
+  #progress .card-header.bg-info {
+    background-color: #0dcaf0 !important;
   }
   
