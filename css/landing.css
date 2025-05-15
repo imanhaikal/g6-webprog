@@ -252,22 +252,42 @@ body {
 .bg-gradient {
     background: linear-gradient(135deg, var(--primary-color) 0%, #3a7bd5 100%);
     color: var(--white);
+    padding: 4rem 0;
 }
 
 .screens-container {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
-    gap: 20px;
-    padding: 2rem 0;
+    max-width: 95%;
+    margin: 0 auto;
+    padding-top: 3rem;
 }
 
 .screen-item {
-    width: 240px;
-    transform: perspective(1000px) rotateY(0deg);
     transition: all 0.5s ease;
+    margin-bottom: 30px;
 }
 
 .screen-item:nth-child(1) {
+    width: 80%;
+    max-width: 900px;
+    transform: perspective(1000px) rotateY(0deg);
+    margin-bottom: 40px;
+    z-index: 10;
+}
+
+.screen-item:nth-child(2),
+.screen-item:nth-child(3) {
+    width: 45%;
+    max-width: 500px;
+    transform: perspective(1000px) rotateY(0deg);
+    position: relative;
+    z-index: 5;
+}
+
+.screen-item:nth-child(2) {
+    margin-right: 30px;
     transform: perspective(1000px) rotateY(5deg);
 }
 
@@ -277,11 +297,19 @@ body {
 
 .screen-item:hover {
     transform: perspective(1000px) rotateY(0deg) translateY(-10px);
+    z-index: 20;
 }
 
 .screen-item img {
     border-radius: 1.5rem;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    height: auto;
+    transition: all 0.5s ease;
+}
+
+.screen-item:hover img {
+    box-shadow: 0 30px 50px rgba(0, 0, 0, 0.3);
 }
 
 /* Testimonials */
@@ -476,12 +504,31 @@ body {
 
 /* Footer */
 .footer {
-    background-color: var(--gray-100);
-    border-top: 1px solid var(--gray-200);
+    background-color: var(--gray-900);
+    position: relative;
+    overflow: hidden;
+    color: var(--white);
+}
+
+.footer:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1950&q=80') center/cover no-repeat;
+    opacity: 0.1;
+    z-index: 0;
+}
+
+.footer .container {
+    position: relative;
+    z-index: 1;
 }
 
 .footer a {
-    color: var(--gray-700);
+    color: rgba(255, 255, 255, 0.8);
     text-decoration: none;
     transition: color 0.3s ease;
 }
@@ -506,8 +553,8 @@ body {
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background-color: var(--gray-200);
-    color: var(--gray-700);
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
     transition: all 0.3s ease;
 }
 
@@ -518,11 +565,11 @@ body {
 }
 
 .footer-bottom {
-    border-top: 1px solid var(--gray-200);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .language-dropdown .btn {
-    color: var(--gray-700);
+    color: rgba(255, 255, 255, 0.8);
     background-color: transparent;
     border: none;
     padding: 0.5rem 1rem;
@@ -543,28 +590,28 @@ body {
 
 /* Responsive */
 @media (max-width: 991.98px) {
-    .pricing-popular {
-        transform: scale(1);
-    }
-    
-    .pricing-popular:hover {
-        transform: translateY(-10px);
-    }
-    
     .screens-container {
         flex-direction: column;
         align-items: center;
     }
     
     .screen-item {
-        width: 80%;
-        max-width: 300px;
-        margin-bottom: 2rem;
+        width: 90% !important;
+        max-width: 600px !important;
+        margin: 0 0 30px 0 !important;
     }
     
     .screen-item:nth-child(1),
+    .screen-item:nth-child(2),
     .screen-item:nth-child(3) {
         transform: perspective(1000px) rotateY(0deg);
+    }
+}
+
+@media (max-width: 768px) {
+    .screen-item {
+        width: 100% !important;
+        max-width: 500px !important;
     }
 }
 
@@ -579,5 +626,102 @@ body {
     
     .cta-stats-container {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Workout Cards */
+.workout-card {
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.workout-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+}
+
+.workout-card .card-img-top {
+    height: 200px;
+    object-fit: cover;
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+}
+
+.workout-card .card-body {
+    padding: 1.5rem;
+}
+
+.workout-card .card-title {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.workout-card .badge {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.75rem;
+}
+
+.workout-card .btn-outline-primary {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.workout-card .btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    color: var(--white);
+}
+
+/* Health Dashboard */
+.dashboard-preview {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.dashboard-preview:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.dashboard-preview img {
+    width: 100%;
+    border-radius: 0.5rem;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.rounded-pill {
+    border-radius: 50rem !important;
+}
+
+/* Responsive fixes for workout cards and dashboard */
+@media (max-width: 767.98px) {
+    .workout-card {
+        margin-bottom: 1.5rem;
+    }
+    
+    .dashboard-preview {
+        margin-bottom: 2rem;
     }
 } 
