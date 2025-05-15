@@ -6,17 +6,42 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.nav-link').forEach(link => {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
-                    const page = e.target.closest('.nav-link').dataset.page;
-                    const section = e.target.closest('.nav-link').dataset.section;
+                    const navLink = e.target.closest('.nav-link');
+                    const page = navLink.dataset.page;
+                    const section = navLink.dataset.section;
                     
                     // Update active states
                     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-                    e.target.closest('.nav-link').classList.add('active');
+                    navLink.classList.add('active');
+                    
+                    // If clicking on a parent menu (not submenu item), also activate parent
+                    if (!navLink.classList.contains('sub-nav-link')) {
+                        // When clicking a parent menu item that has a submenu, 
+                        // also activate its first submenu item if available
+                        const firstSubmenu = navLink.closest('.nav-item').querySelector('.sub-nav-link');
+                        if (firstSubmenu) {
+                            firstSubmenu.classList.add('active');
+                        }
+                    } else {
+                        // If clicking on a submenu item, also activate its parent
+                        const parentItem = navLink.closest('ul').previousElementSibling;
+                        if (parentItem && parentItem.classList.contains('nav-link')) {
+                            parentItem.classList.add('active');
+                        }
+                    }
+                    
+                    // Update submenu visibility
+                    updateSubmenuVisibility();
                     
                     // Load the page
                     loadPage(page, section);
                 });
             });
+            
+            // Initial update for submenu visibility - with a slight delay to ensure DOM is fully rendered
+            setTimeout(() => {
+                updateSubmenuVisibility();
+            }, 100);
             
             // Add event delegation for buttons with data-page attributes that might be added dynamically
             document.addEventListener('click', (e) => {
@@ -36,6 +61,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const navLink = document.querySelector(`.nav-link[data-page="${page}"]:not(.sub-nav-link)`);
             if (pageTitle && navLink) {
                 pageTitle.textContent = navLink.textContent.trim();
+                
+                // Set active state on the nav link
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                navLink.classList.add('active');
+                
+                // If this is a parent item and we have a section, activate the submenu item
+                if (section) {
+                    const submenuItem = document.querySelector(`.sub-nav-link[data-page="${page}"][data-section="${section}"]`);
+                    if (submenuItem) {
+                        submenuItem.classList.add('active');
+                    }
+                } else {
+                    // If no section specified and this nav item has submenus, activate first submenu
+                    const firstSubmenu = navLink.closest('.nav-item').querySelector('.sub-nav-link');
+                    if (firstSubmenu) {
+                        firstSubmenu.classList.add('active');
+                    }
+                }
+                
+                // Update submenu visibility
+                updateSubmenuVisibility();
             }
 
             // Load the page content
@@ -869,3 +915,26 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = "login.html";
             alert('Logged out (mock)!');
         });
+
+        // Function to update submenu visibility based on active parent menus
+        function updateSubmenuVisibility() {
+            // First hide all submenus
+            document.querySelectorAll('.nav-pills .nav-item ul.nav').forEach(submenu => {
+                submenu.style.maxHeight = '0';
+                submenu.classList.remove('show');
+            });
+            
+            // Show submenus for active parent items
+            document.querySelectorAll('.nav-pills .nav-item > .nav-link.active').forEach(activeParent => {
+                const submenu = activeParent.nextElementSibling;
+                if (submenu && submenu.tagName === 'UL') {
+                    // Calculate the height of all child elements
+                    const totalHeight = Array.from(submenu.children)
+                        .reduce((height, child) => height + child.offsetHeight, 0);
+                    
+                    // Add some padding to ensure all content is visible
+                    submenu.style.maxHeight = `${totalHeight + 20}px`;
+                    submenu.classList.add('show');
+                }
+            });
+        }

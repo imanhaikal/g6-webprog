@@ -59,6 +59,37 @@ body {
             padding-left: 2.5rem; /* Indent sub-items */
         }
 
+        /* Added styles for collapsible submenu */
+        .nav-pills .nav-item ul.nav {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out, opacity 0.3s ease;
+            padding-left: 0;
+            margin-left: 1rem;
+            opacity: 0;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            visibility: hidden;
+        }
+
+        .nav-pills .nav-item ul.nav li {
+            width: 100%;
+            margin-bottom: 3px;
+        }
+
+        .nav-pills .nav-item ul.nav .nav-link {
+            width: 100%;
+            white-space: nowrap;
+            padding: 0.5rem 1rem;
+        }
+
+        .nav-pills .nav-item:has(> .nav-link.active) ul.nav,
+        .nav-pills .nav-item ul.nav.show {
+            max-height: 300px; /* Ensure it's tall enough for all items */
+            opacity: 1;
+            visibility: visible;
+        }
 
         .header {
             background-color: var(--card-bg);
