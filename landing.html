@@ -73,7 +73,7 @@
             
         </div>
 
-        <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.93/build/spline-viewer.js"></script>
+        <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.95/build/spline-viewer.js"></script>
 <spline-viewer class="jacked-dude" url="https://prod.spline.design/DvYWjJg5-C7Sp47E/scene.splinecode"></spline-viewer>
 
     </div>
@@ -435,6 +435,35 @@
             } else {
                 navbar.classList.remove('navbar-scrolled');
             }
+        });
+
+        // Optimize 3D element performance by disabling when not in view
+        document.addEventListener('DOMContentLoaded', function() {
+            const splineElement = document.querySelector('.jacked-dude');
+            const splineUrl = splineElement.getAttribute('url');
+            
+            // Create an Intersection Observer
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        // Element is visible, load the 3D content
+                        if (!splineElement.hasAttribute('url')) {
+                            splineElement.setAttribute('url', splineUrl);
+                        }
+                    } else {
+                        // Element is not visible, remove the url attribute to pause rendering
+                        if (splineElement.hasAttribute('url')) {
+                            splineElement.removeAttribute('url');
+                        }
+                    }
+                });
+            }, {
+                rootMargin: '0px',
+                threshold: 0.1 // Trigger when at least 10% of the element is visible
+            });
+            
+            // Start observing the 3D element
+            observer.observe(splineElement);
         });
     </script>
 
