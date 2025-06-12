@@ -32,7 +32,23 @@ body {
 .jacked-dude {
     position: absolute;
     top: 0;
-    right: -25%;
+    right: -15%;
+    width: 60%;
+    height: 100%;
+    z-index: 1;
+}
+
+@media (max-width: 1200px) {
+    .jacked-dude {
+        right: -25%;
+        width: 70%;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .jacked-dude {
+        display: none;
+    }
 }
 
 /* Section Padding */
@@ -83,7 +99,8 @@ body {
 
 .hero-content {
     height: 100%;
-    z-index: 999;
+    z-index: 2;
+    position: relative;
 }
 
 /* Navbar */
@@ -91,6 +108,7 @@ body {
     transition: all 0.3s ease;
     padding-top: 1.5rem;
     padding-bottom: 1.5rem;
+    z-index: 1030;
 }
 
 .navbar-scrolled {
@@ -122,6 +140,7 @@ body {
     padding: 0.8rem 1.5rem;
     border-radius: 8px;
     transition: all 0.3s ease;
+    white-space: normal;
 }
 
 .btn-lg {
@@ -213,6 +232,7 @@ body {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
     height: 100%;
+    margin-bottom: 1rem;
 }
 
 .feature-card:hover {
@@ -262,11 +282,14 @@ body {
     max-width: 95%;
     margin: 0 auto;
     padding-top: 3rem;
+    gap: 30px;
 }
 
 .screen-item {
     transition: all 0.5s ease;
     margin-bottom: 30px;
+    width: 30%;
+    max-width: 400px;
 }
 
 .screen-item:nth-child(1) {
@@ -594,6 +617,7 @@ body {
     .screens-container {
         flex-direction: column;
         align-items: center;
+        gap: 20px;
     }
     
     .screen-item {
@@ -601,37 +625,101 @@ body {
         max-width: 600px !important;
         margin: 0 0 30px 0 !important;
     }
-
-    .jacked-dude {
-        display: none !important;
-    }
     
     .screen-item:nth-child(1),
     .screen-item:nth-child(2),
     .screen-item:nth-child(3) {
         transform: perspective(1000px) rotateY(0deg);
+        width: 90% !important;
     }
 }
 
 @media (max-width: 768px) {
-    
     .screen-item {
         width: 100% !important;
         max-width: 500px !important;
+        margin-bottom: 20px !important;
     }
 }
 
 @media (max-width: 767.98px) {
     .hero-content {
         text-align: center;
+        padding-top: 6rem;
+    }
+    
+    .hero-section {
+        height: auto;
+        min-height: 100vh;
     }
     
     .stats-container {
         justify-content: center;
     }
     
+    .btn-lg {
+        padding: 0.8rem 1.5rem;
+        font-size: 1rem;
+    }
+    
+    .display-3 {
+        font-size: calc(1.5rem + 3vw);
+    }
+    
+    .lead {
+        font-size: 1rem;
+    }
+    
     .cta-stats-container {
         grid-template-columns: 1fr;
+    }
+    
+    .workout-card {
+        margin-bottom: 1.5rem;
+    }
+    
+    .dashboard-preview {
+        margin-bottom: 2rem;
+    }
+    
+    .feature-card {
+        padding: 1.5rem;
+    }
+    
+    .feature-icon-wrapper {
+        width: 50px;
+        height: 50px;
+        margin-bottom: 1rem;
+    }
+    
+    .feature-icon-wrapper i {
+        font-size: 1.4rem;
+    }
+    
+    .feature-title {
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .footer {
+        text-align: center;
+    }
+    
+    .footer h5 {
+        margin-top: 1.5rem;
+    }
+    
+    .social-links {
+        justify-content: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .footer-bottom {
+        text-align: center;
+    }
+    
+    .language-dropdown {
+        margin-top: 1rem;
     }
 }
 
@@ -719,15 +807,4 @@ body {
 
 .rounded-pill {
     border-radius: 50rem !important;
-}
-
-/* Responsive fixes for workout cards and dashboard */
-@media (max-width: 767.98px) {
-    .workout-card {
-        margin-bottom: 1.5rem;
-    }
-    
-    .dashboard-preview {
-        margin-bottom: 2rem;
-    }
 } 
