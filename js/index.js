@@ -134,6 +134,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (page === 'activities') {
                             displayAllActivities();
                         }
+
+                        // Initialize all workouts page
+                        if (page === 'workouts') {
+                            displayAllWorkouts();
+                        }
                     } else {
                         throw new Error('Content element not found in the loaded page');
                     }
@@ -430,39 +435,373 @@ document.addEventListener('DOMContentLoaded', () => {
         // Function to initialize fitness tracker-specific logic
         function initializeFitnessTracker() {
             const logActivityForm = document.getElementById('logActivityForm');
-            
             if (logActivityForm) {
                 logActivityForm.addEventListener('submit', function(event) {
-                    event.preventDefault(); // Prevent default form submission
-
+                    event.preventDefault();
                     const formData = new FormData(logActivityForm);
                     const data = Object.fromEntries(formData.entries());
 
                     fetch('/log-activity', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(data),
                     })
                     .then(response => {
                         if (response.ok) {
-                            // alert('Activity logged successfully!');
-                            //Instead of reloading, just refresh the activities list
-                    displayRecentActivities();
-                    logActivityForm.reset();
-                    } else {
+                            displayRecentActivities();
+                            logActivityForm.reset();
+                        } else {
                            return response.text().then(text => { throw new Error(text) });
                         }
                     })
                     .catch(error => {
                         console.error('Error logging activity:', error);
                         alert('Failed to log activity: ' + error.message);
-                            });
+                    });
+                });
+            }
+            displayRecentActivities();
+            
+            // Initialize workout functionality
+            initializeWorkoutLogger();
+        }
+
+        // --- Workout Logger Functions ---
+
+        let allTemplates = []; // Cache for storing templates
+
+        function initializeWorkoutLogger() {
+            const logWorkoutForm = document.getElementById('logWorkoutForm');
+            const workoutTemplateSelect = document.getElementById('workoutTemplate');
+            const customTemplateFields = document.getElementById('customTemplateFields');
+            const addExerciseBtn = document.getElementById('addExerciseBtn');
+            const logWorkoutTypeRadios = document.querySelectorAll('input[name="workoutType"]');
+            const addSingleExerciseBtn = document.getElementById('addSingleExerciseBtn');
+
+            if (!logWorkoutForm) return;
+
+            // Load initial data
+            loadWorkoutTemplates();
+            displayRecentWorkouts();
+            updateWorkoutStreak();
+
+            // Event Listeners
+            logWorkoutTypeRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    const type = e.target.value;
+                    const templateContainer = document.getElementById('logFromTemplateContainer');
+                    const singleContainer = document.getElementById('logSingleWorkoutContainer');
+
+                    if (type === 'template') {
+                        templateContainer.classList.remove('d-none');
+                        singleContainer.classList.add('d-none');
+                    } else { // type === 'single'
+                        templateContainer.classList.add('d-none');
+                        singleContainer.classList.remove('d-none');
+                    }
+                });
+            });
+
+            workoutTemplateSelect.addEventListener('change', () => {
+                const selectedValue = workoutTemplateSelect.value;
+                if (selectedValue === 'custom') {
+                        customTemplateFields.classList.remove('d-none');
+                    document.getElementById('templateExerciseList').innerHTML = ''; // Clear exercise list
+                } else if (selectedValue) {
+                    customTemplateFields.classList.add('d-none');
+                    displayTemplateExercises(selectedValue);
+                    } else {
+                        customTemplateFields.classList.add('d-none');
+                    document.getElementById('templateExerciseList').innerHTML = '';
+                }
+            });
+
+            addExerciseBtn.addEventListener('click', () => addExerciseField('exerciseFields', 'templateExercises'));
+            addSingleExerciseBtn.addEventListener('click', () => addExerciseField('singleWorkoutExerciseFields', 'singleExercises'));
+
+            logWorkoutForm.addEventListener('submit', handleWorkoutSubmit);
+        }
+
+        async function loadWorkoutTemplates() {
+            const select = document.getElementById('workoutTemplate');
+            try {
+                const response = await fetch('/api/workout-templates');
+                allTemplates = await response.json(); // Cache templates
+                
+                // Clear existing options except for the first and last
+                const preservedOptions = [select.options[0], select.options[select.options.length - 1]];
+                select.innerHTML = '';
+                preservedOptions.forEach(opt => select.appendChild(opt));
+
+                allTemplates.forEach(template => {
+                    const option = document.createElement('option');
+                    option.value = template._id;
+                    option.textContent = template.name;
+                    select.insertBefore(option, select.options[select.options.length - 1]);
+                });
+            } catch (error) {
+                console.error('Failed to load workout templates:', error);
+            }
+        }
+
+        function displayTemplateExercises(templateId) {
+            const container = document.getElementById('templateExerciseList');
+            container.innerHTML = '';
+            const selectedTemplate = allTemplates.find(t => t._id === templateId);
+
+            if (!selectedTemplate || !selectedTemplate.exercises || selectedTemplate.exercises.length === 0) {
+                return;
+            }
+
+            const list = document.createElement('ul');
+            list.className = 'list-group';
+            
+            selectedTemplate.exercises.forEach(ex => {
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item';
+                let exerciseDetails = `<strong>${ex.name}</strong>`;
+                if (ex.sets && ex.reps) {
+                    exerciseDetails += `: ${ex.sets} sets of ${ex.reps} reps`;
+                } else if (ex.duration) {
+                     exerciseDetails += `: ${ex.duration} seconds`;
+                }
+                listItem.innerHTML = exerciseDetails;
+                list.appendChild(listItem);
+            });
+
+            container.appendChild(list);
+        }
+
+        function addExerciseField(containerId) {
+            const container = document.getElementById(containerId);
+            const newField = document.createElement('div');
+            newField.className = 'row g-2 mb-2 align-items-center';
+            newField.innerHTML = `
+                <div class="col-sm-5">
+                    <input type="text" class="form-control form-control-sm" placeholder="Exercise Name" required>
+                </div>
+                <div class="col-sm-3">
+                    <input type="number" class="form-control form-control-sm" placeholder="Sets" min="1">
+                </div>
+                <div class="col-sm-3">
+                    <input type="number" class="form-control form-control-sm" placeholder="Reps" min="1">
+                </div>
+                <div class="col-sm-1">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.parentElement.parentElement.remove()">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(newField);
+        }
+        
+        async function handleWorkoutSubmit(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const logType = formData.get('workoutType');
+            
+            let workoutPayload = {
+                duration: formData.get('duration'),
+                date: formData.get('date'),
+                time: formData.get('time'),
+                notes: formData.get('notes'),
+            };
+
+            if (logType === 'template') {
+                let templateId = formData.get('templateId');
+
+                if (!templateId) {
+                    alert('Please select a workout template.');
+                    return;
+                }
+
+                if (templateId === 'custom') {
+                    try {
+                        const newTemplateId = await createCustomTemplate();
+                        if (!newTemplateId) return; // Stop if template creation failed
+                        templateId = newTemplateId;
+                    } catch (error) {
+                        console.error('Failed to create custom template:', error);
+                        alert(`Error creating custom template: ${error.message}`);
+                        return;
+                    }
+                }
+                workoutPayload.templateId = templateId;
+                    
+            } else { // logType is 'single'
+                    const exercises = [];
+                const exerciseRows = document.querySelectorAll('#singleWorkoutExerciseFields .row');
+                exerciseRows.forEach(row => {
+                    const inputs = row.querySelectorAll('input');
+                    const nameInput = inputs[0];
+                    const setsInput = inputs[1];
+                    const repsInput = inputs[2];
+                    
+                    if (nameInput && nameInput.value) {
+                            exercises.push({
+                            name: nameInput.value,
+                            sets: setsInput.value ? parseInt(setsInput.value) : null,
+                            reps: repsInput.value ? parseInt(repsInput.value) : null
                         });
                     }
+                });
+
+                if (exercises.length === 0) {
+                    alert('Please add at least one exercise to the workout.');
+                    return;
+                }
+                workoutPayload.exercises = exercises;
+            }
+
+            // Now log the workout
+            try {
+                const response = await fetch('/api/workouts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(workoutPayload)
+                });
+
+                 if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server error while logging workout: ${errorText}`);
+                }
+                
+                // Reset form and update UI
+                form.reset();
+                 // Manually reset the radio button to its default state
+                document.getElementById('logFromTemplate').checked = true;
+                document.getElementById('logSingleWorkout').checked = false;
+                document.getElementById('logFromTemplateContainer').classList.remove('d-none');
+                document.getElementById('logSingleWorkoutContainer').classList.add('d-none');
+                document.getElementById('customTemplateFields').classList.add('d-none');
+                document.getElementById('exerciseFields').innerHTML = '';
+                document.getElementById('singleWorkoutExerciseFields').innerHTML = '';
+                document.getElementById('templateExerciseList').innerHTML = '';
+                loadWorkoutTemplates();
+                displayRecentWorkouts();
+                    updateWorkoutStreak();
+                alert('Workout logged successfully!');
+
+            } catch (error) {
+                console.error('Failed to log workout:', error);
+                alert(`Error logging workout: ${error.message}`);
+            }
+        }
+
+        async function createCustomTemplate() {
+            const templateName = document.getElementById('customTemplateName').value;
+            if (!templateName) {
+                alert('Please provide a name for your custom template.');
+                return null;
+            }
+
+            const exercises = [];
+            const exerciseRows = document.querySelectorAll('#exerciseFields .row');
+             exerciseRows.forEach(row => {
+                const inputs = row.querySelectorAll('input');
+                const nameInput = inputs[0];
+                const setsInput = inputs[1];
+                const repsInput = inputs[2];
+
+                if (nameInput && nameInput.value) {
+                    exercises.push({
+                        name: nameInput.value,
+                        sets: setsInput.value ? parseInt(setsInput.value) : null,
+                        reps: repsInput.value ? parseInt(repsInput.value) : null
+                    });
+                }
+            });
+
+            if (exercises.length === 0) {
+                alert('Please add at least one exercise to the custom template.');
+                return null;
+            }
+
+            const response = await fetch('/api/workout-templates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ templateName, exercises })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Server error: ${errorText}`);
+            }
+
+            const newTemplate = await response.json();
+            return newTemplate.insertedId;
+        }
+
+        async function displayRecentWorkouts() {
+            const container = document.getElementById('recent-workouts-list');
+            if (!container) return;
+            container.innerHTML = '';
+            try {
+                const response = await fetch('/api/workouts');
+                const workouts = await response.json();
+
+                if (workouts.length === 0) {
+                    container.innerHTML = '<div class="list-group-item text-center text-muted">No workouts logged yet.</div>';
+                    return;
+                }
+                
+                const templatesRes = await fetch('/api/workout-templates');
+                const templates = await templatesRes.json();
+                const templateMap = new Map(templates.map(t => [t._id, t.name]));
+
+                let workoutsHTML = '';
+                workouts.forEach(workout => {
+                    const formattedDate = new Date(workout.date).toLocaleString('en-US', {
+                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    });
                     
-            displayRecentActivities();
+                    let workoutTitle = 'Single Workout';
+                    if (workout.workoutType === 'template' && workout.templateId) {
+                        workoutTitle = templateMap.get(workout.templateId.toString()) || 'Unnamed Template';
+                    } else if (workout.exercises && workout.exercises.length > 0) {
+                        workoutTitle = `Single: ${workout.exercises[0].name}`;
+                    }
+
+                    workoutsHTML += `
+                        <div class="list-group-item" data-workout-id="${workout._id}">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div>
+                                    <h6 class="mb-1">${workoutTitle}</h6>
+                                    <p class="mb-1 small">Duration: ${workout.duration} minutes</p>
+                                </div>
+                                <div class="d-flex flex-column align-items-end">
+                                    <small class="text-muted mb-2">${formattedDate}</small>
+                                    <div>
+                                        <button class="btn btn-outline-primary btn-sm me-2 edit-workout-btn" data-bs-toggle="modal" data-bs-target="#editWorkoutModal">
+                                            <i class="bi bi-pencil-square"></i> Edit
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm delete-workout-btn">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = workoutsHTML;
+            } catch (error) {
+                console.error('Failed to display recent workouts:', error);
+                container.innerHTML = '<div class="list-group-item text-center text-danger">Could not load recent workouts.</div>';
+            }
+        }
+
+        async function updateWorkoutStreak() {
+            const streakEl = document.getElementById('workoutStreak');
+            if (!streakEl) return;
+            try {
+                const response = await fetch('/api/workout-streak');
+                const data = await response.json();
+                streakEl.textContent = data.streak;
+            } catch (error) {
+                console.error('Failed to update workout streak:', error);
+            }
         }
 
         // Simple form validation function for fitness forms
@@ -493,7 +832,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // This might happen if the fitness page is not loaded, so we just return.
                 return;
             }
-
+            
             try {
                 const response = await fetch('/get-activities');
                 if (!response.ok) {
@@ -523,7 +862,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div>
                                     <h6 class="mb-1">${activity.activityType}</h6>
                                     <p class="mb-1 small">Duration: ${activity.duration} mins | Intensity: ${activity.intensity}</p>
-                                </div>
+                        </div>
                                 <div class="d-flex flex-column align-items-end">
                                     <small class="text-muted mb-2">${formattedDate}</small>
                                     <div>
@@ -536,9 +875,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    `;
-                });
+                    </div>
+                `;
+            });
                 activitiesContainer.innerHTML = activitiesHTML;
 
             } catch (error) {
@@ -552,9 +891,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const activitiesContainer = document.querySelector('#all-activities-list');
             if (!activitiesContainer) {
                 console.error('All activities container not found');
-                        return;
-                    }
-                    
+                return;
+            }
+            
             try {
                 const response = await fetch('/get-all-activities');
                 if (!response.ok) {
@@ -581,14 +920,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     activitiesHTML += `
                         <div class="list-group-item" data-activity-id="${activity._id}">
-                             <div class="d-flex w-100 justify-content-between">
+                        <div class="d-flex w-100 justify-content-between">
                                 <div>
                                     <h6 class="mb-1">${activity.activityType} (${activity.category})</h6>
                                     <p class="mb-1">
                                         Duration: <strong>${activity.duration} minutes</strong> | Intensity: <strong>${activity.intensity}</strong>
                                     </p>
                                     ${activity.notes ? `<p class="mb-0 text-muted fst-italic">Notes: ${activity.notes}</p>` : ''}
-                                </div>
+                        </div>
                                 <div class="d-flex flex-column align-items-end">
                                      <small class="text-muted mb-2">${formattedDate}</small>
                                     <div>
@@ -601,9 +940,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    `;
-                });
+                    </div>
+                `;
+            });
                 activitiesContainer.innerHTML = activitiesHTML;
 
             } catch (error) {
@@ -613,6 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         document.addEventListener('click', function(event) {
+            // Handle activity deletion
             if (event.target.closest('.delete-btn')) {
                 const activityElement = event.target.closest('.list-group-item');
                 
@@ -631,6 +971,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (confirm('Are you sure you want to delete this activity?')) {
                     deleteActivity(activityId, activityElement);
+                }
+            } 
+            // Handle workout deletion
+            else if (event.target.closest('.delete-workout-btn')) {
+                const workoutElement = event.target.closest('[data-workout-id]');
+                if (workoutElement) {
+                    const workoutId = workoutElement.dataset.workoutId;
+                    if (confirm('Are you sure you want to delete this workout?')) {
+                        deleteWorkout(workoutId);
+                    }
                 }
             }
         });
@@ -691,6 +1041,51 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         
+        const editWorkoutModal = document.getElementById('editWorkoutModal');
+        if (editWorkoutModal) {
+            editWorkoutModal.addEventListener('show.bs.modal', async function (event) {
+                const button = event.relatedTarget;
+                const workoutElement = button.closest('[data-workout-id]');
+                
+                if (!workoutElement) {
+                    console.error("Could not find workout element for editing.");
+                    return;
+                }
+                const workoutId = workoutElement.dataset.workoutId;
+
+                try {
+                    const response = await fetch(`/api/workouts/${workoutId}`);
+                    if (!response.ok) throw new Error('Could not fetch workout details.');
+                    const workout = await response.json();
+
+                    const workoutDate = new Date(workout.date);
+                    document.getElementById('editWorkoutId').value = workout._id;
+                    document.getElementById('editWorkoutDuration').value = workout.duration;
+                    document.getElementById('editWorkoutDate').value = workoutDate.toISOString().split('T')[0];
+                    document.getElementById('editWorkoutTime').value = workoutDate.toTimeString().split(' ')[0].substring(0, 5);
+                    document.getElementById('editWorkoutNotes').value = workout.notes || '';
+                } catch (error) {
+                    console.error('Error populating workout edit form:', error);
+                    alert('Could not load workout details for editing.');
+                }
+            });
+        }
+        
+        const editWorkoutForm = document.getElementById('editWorkoutForm');
+        if (editWorkoutForm) {
+            editWorkoutForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                const workoutId = document.getElementById('editWorkoutId').value;
+                const updatedWorkout = {
+                    duration: document.getElementById('editWorkoutDuration').value,
+                    date: document.getElementById('editWorkoutDate').value,
+                    time: document.getElementById('editWorkoutTime').value,
+                    notes: document.getElementById('editWorkoutNotes').value,
+                };
+                updateWorkout(workoutId, updatedWorkout);
+            });
+        }
+
         async function deleteActivity(activityId, elementToRemove) {
             try {
                 const response = await fetch(`/delete-activity/${activityId}`, {
@@ -699,23 +1094,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     elementToRemove.remove();
                     
-                    // Refresh recent activities if the deleted item was in that list
                     if (document.querySelector('#recent-activities-list')) {
                         displayRecentActivities();
                     }
 
-                     // Check if all activities list is empty
                     const container = document.querySelector('#all-activities-list');
                     if(container && container.children.length === 0){
                         container.innerHTML = '<div class="list-group-item text-center text-muted">No activities have been logged yet.</div>';
                     }
-            } else {
+                } else {
                     const error = await response.text();
                     alert(`Error deleting activity: ${error}`);
                 }
             } catch (err) {
                 console.error('Failed to delete activity:', err);
                 alert('An error occurred while trying to delete the activity.');
+            }
+        }
+
+        async function deleteWorkout(workoutId) {
+            try {
+                const response = await fetch(`/api/workouts/${workoutId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    if (document.getElementById('all-workouts-list')) displayAllWorkouts();
+                    if (document.getElementById('recent-workouts-list')) displayRecentWorkouts();
+                    updateWorkoutStreak();
+                } else {
+                    alert(`Error deleting workout: ${await response.text()}`);
+                }
+            } catch (err) {
+                console.error('Failed to delete workout:', err);
+                alert('An error occurred while trying to delete the workout.');
             }
         }
 
@@ -730,8 +1139,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     const modal = bootstrap.Modal.getInstance(document.getElementById('editActivityModal'));
                     modal.hide();
-                    displayAllActivities(); // Refresh the list
-                    displayRecentActivities(); // Also refresh the recent activities list
+                    displayAllActivities();
+                    displayRecentActivities();
                 } else {
                      const error = await response.text();
                     alert(`Error updating activity: ${error}`);
@@ -742,16 +1151,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Display recent workouts in the UI
-        function displayRecentWorkouts() {
-            const workoutsContainer = document.querySelector('#fitness-log-workout')?.closest('.card').querySelector('.list-group');
-            if (!workoutsContainer) return;
-
-            // This function's content seems to be based on localStorage and is not aligned with the database implementation.
-            // It should be refactored to fetch workout data from the server if that functionality is desired.
-            // For now, we'll ensure it doesn't break.
-            
-            workoutsContainer.innerHTML = '<div class="list-group-item text-center text-muted">Workout logging not implemented.</div>';
+        async function updateWorkout(workoutId, data) {
+            try {
+                const response = await fetch(`/api/workouts/${workoutId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (response.ok) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('editWorkoutModal'));
+                    modal.hide();
+                    if (document.getElementById('all-workouts-list')) displayAllWorkouts();
+                    if (document.getElementById('recent-workouts-list')) displayRecentWorkouts();
+                    updateWorkoutStreak();
+                } else {
+                    alert(`Error updating workout: ${await response.text()}`);
+                }
+            } catch (err) {
+                console.error('Failed to update workout:', err);
+                alert('An error occurred while trying to update the workout.');
+            }
         }
 
         // Function to update submenu visibility based on active parent menus
@@ -775,4 +1194,76 @@ document.addEventListener('DOMContentLoaded', () => {
                     submenu.classList.add('show');
                 }
             });
+        }
+
+        async function displayAllWorkouts() {
+            const container = document.getElementById('all-workouts-list');
+            if (!container) return;
+            container.innerHTML = '<div class="text-center text-muted">Loading workouts...</div>';
+
+            try {
+                const response = await fetch('/api/all-workouts');
+                if (!response.ok) throw new Error('Failed to fetch workouts');
+                const workouts = await response.json();
+
+                if (workouts.length === 0) {
+                    container.innerHTML = '<div class="text-center text-muted">No workouts have been logged yet.</div>';
+                    return;
+                }
+
+                let workoutsHTML = '';
+                workouts.forEach((workout, index) => {
+                    const workoutDate = new Date(workout.date).toLocaleString('en-US', {
+                        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    });
+                    
+                    let workoutTitle = 'Single Workout';
+                    let exercises = workout.exercises || [];
+                    if (workout.workoutType === 'template' && workout.templateDetails) {
+                        workoutTitle = workout.templateDetails.name;
+                        exercises = workout.templateDetails.exercises || [];
+                    }
+
+                    let exerciseListHTML = '<ul class="list-group list-group-flush">';
+                    if (exercises.length > 0) {
+                        exercises.forEach(ex => {
+                            let details = ex.sets && ex.reps ? `${ex.sets} sets of ${ex.reps} reps` : `${ex.duration} seconds`;
+                            exerciseListHTML += `<li class="list-group-item">${ex.name}: ${details}</li>`;
+                        });
+                    } else {
+                        exerciseListHTML += '<li class="list-group-item">No exercises listed for this workout.</li>';
+                    }
+                    exerciseListHTML += '</ul>';
+
+                    workoutsHTML += `
+                        <div class="accordion-item" data-workout-id="${workout._id}">
+                            <h2 class="accordion-header" id="heading-${index}">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${index}" aria-expanded="false" aria-controls="collapse-${index}">
+                                    <strong>${workoutTitle}</strong>&nbsp;-&nbsp;<span class="text-muted">${workoutDate}</span>
+                                </button>
+                            </h2>
+                            <div id="collapse-${index}" class="accordion-collapse collapse" aria-labelledby="heading-${index}" data-bs-parent="#all-workouts-list">
+                                <div class="accordion-body">
+                                    <div class="d-flex justify-content-end mb-3">
+                                        <button class="btn btn-outline-primary btn-sm me-2 edit-workout-btn" data-bs-toggle="modal" data-bs-target="#editWorkoutModal">
+                                            <i class="bi bi-pencil-square"></i> Edit
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm delete-workout-btn">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                    </div>
+                                    <p><strong>Duration:</strong> ${workout.duration} minutes</p>
+                                    ${workout.notes ? `<p><strong>Notes:</strong> ${workout.notes}</p>` : ''}
+                                    <h6 class="mt-3">Exercises:</h6>
+                                    ${exerciseListHTML}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = workoutsHTML;
+            } catch (error) {
+                console.error('Error displaying all workouts:', error);
+                container.innerHTML = '<div class="text-center text-danger">Could not load workouts.</div>';
+            }
         }

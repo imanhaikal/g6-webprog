@@ -33,6 +33,34 @@ const client = new MongoClient(uri, {
   }
 });
 
+const presetTemplates = [
+    {
+        name: "Full Body Strength",
+        exercises: [
+            { name: "Squats", sets: 3, reps: 10 },
+            { name: "Push-ups", sets: 3, reps: 15 },
+            { name: "Rows", sets: 3, reps: 12 },
+            { name: "Overhead Press", sets: 3, reps: 10 },
+        ],
+    },
+    {
+        name: "Cardio Blast",
+        exercises: [
+            { name: "Jumping Jacks", duration: 60 }, // duration in seconds
+            { name: "High Knees", duration: 60 },
+            { name: "Burpees", duration: 60 },
+        ],
+    },
+    {
+        name: "Core Focus",
+        exercises: [
+            { name: "Plank", duration: 60 },
+            { name: "Crunches", sets: 3, reps: 20 },
+            { name: "Leg Raises", sets: 3, reps: 15 },
+        ],
+    },
+];
+
 async function run() {
   try {
     await client.connect();
@@ -77,11 +105,16 @@ app.get('/activities.html', authMiddleware, (req, res) => {
     res.sendFile(path.join(__dirname, 'activities.html'));
 });
 
+app.get('/workouts.html', authMiddleware, (req, res) => {
+    res.sendFile(path.join(__dirname, 'workouts.html'));
+});
+
 // Register route
 app.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
     const db = client.db('webprog');
     const usersCollection = db.collection('users');
+    const templatesCollection = db.collection('workout_templates');
 
     try {
         const existingUser = await usersCollection.findOne({ $or: [{ username }, { email }] });
@@ -90,11 +123,22 @@ app.post('/register', async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        await usersCollection.insertOne({
+        const newUserResult = await usersCollection.insertOne({
             username,
             email,
             password: hashedPassword,
         });
+
+        // Add preset templates for the new user
+        const userId = newUserResult.insertedId;
+        const userPresetTemplates = presetTemplates.map(template => ({
+            ...template,
+            userId: userId,
+            isPreset: true, // Flag to identify preset templates
+            createdAt: new Date(),
+        }));
+        
+        await templatesCollection.insertMany(userPresetTemplates);
 
         res.redirect('/login.html');
     } catch (error) {
@@ -312,6 +356,238 @@ app.delete('/delete-activity/:id', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Error deleting activity:', error);
         res.status(500).send('Failed to delete activity.');
+    }
+});
+
+// --- Workout and Template Routes ---
+
+// Get all workout templates for the user
+app.get('/api/workout-templates', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    const templatesCollection = db.collection('workout_templates');
+    try {
+        const templates = await templatesCollection.find({ userId: new ObjectId(req.session.user.id) }).toArray();
+        res.json(templates);
+    } catch (error) {
+        console.error('Error fetching workout templates:', error);
+        res.status(500).send('Failed to fetch workout templates.');
+    }
+});
+
+// Create a new workout template
+app.post('/api/workout-templates', authMiddleware, async (req, res) => {
+    const { templateName, exercises } = req.body;
+    const db = client.db('webprog');
+    const templatesCollection = db.collection('workout_templates');
+    try {
+        const newTemplate = {
+            userId: new ObjectId(req.session.user.id),
+            name: templateName,
+            exercises, // [{ name, sets, reps }]
+            createdAt: new Date()
+        };
+        const result = await templatesCollection.insertOne(newTemplate);
+        res.status(201).json(result);
+    } catch (error) {
+        console.error('Error creating workout template:', error);
+        res.status(500).send('Failed to create workout template.');
+    }
+});
+
+// Log a new workout
+app.post('/api/workouts', authMiddleware, async (req, res) => {
+    const { templateId, duration, date, time, notes, exercises } = req.body;
+    const db = client.db('webprog');
+    const workoutsCollection = db.collection('workouts');
+
+    try {
+        const newWorkout = {
+            userId: new ObjectId(req.session.user.id),
+            duration: parseInt(duration, 10),
+            date: new Date(`${date}T${time}`),
+            notes,
+            createdAt: new Date()
+        };
+
+        if (templateId) {
+            newWorkout.templateId = new ObjectId(templateId);
+            newWorkout.workoutType = 'template';
+        } else if (exercises && exercises.length > 0) {
+            newWorkout.exercises = exercises; // Storing the exercises directly
+            newWorkout.workoutType = 'single';
+        } else {
+            return res.status(400).send('Workout must have either a templateId or a list of exercises.');
+        }
+
+        const result = await workoutsCollection.insertOne(newWorkout);
+        res.status(201).json(result);
+    } catch (error) {
+        console.error('Error logging workout:', error);
+        res.status(500).send('Failed to log workout.');
+    }
+});
+
+// Get recent workouts
+app.get('/api/workouts', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    const workoutsCollection = db.collection('workouts');
+    try {
+        const recentWorkouts = await workoutsCollection
+            .find({ userId: new ObjectId(req.session.user.id) })
+            .sort({ date: -1 })
+            .limit(5)
+            .toArray();
+        res.json(recentWorkouts);
+    } catch (error) {
+        console.error('Error fetching recent workouts:', error);
+        res.status(500).send('Failed to fetch recent workouts.');
+    }
+});
+
+// Get workout streak
+app.get('/api/workout-streak', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    const workoutsCollection = db.collection('workouts');
+    try {
+        const workouts = await workoutsCollection
+            .find(
+                { userId: new ObjectId(req.session.user.id) },
+                { projection: { date: 1 } }
+            )
+            .sort({ date: -1 })
+            .toArray();
+
+        if (workouts.length === 0) {
+            return res.json({ streak: 0 });
+        }
+
+        let streak = 0;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Check if there is a workout today or yesterday to start the streak count
+        const mostRecentWorkoutDate = new Date(workouts[0].date);
+        mostRecentWorkoutDate.setHours(0, 0, 0, 0);
+
+        const diffTime = today - mostRecentWorkoutDate;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays > 1) {
+            return res.json({ streak: 0 }); // No workout today or yesterday
+        }
+        
+        streak = 1;
+        let lastWorkoutDate = mostRecentWorkoutDate;
+
+        for (let i = 1; i < workouts.length; i++) {
+            const currentWorkoutDate = new Date(workouts[i].date);
+            currentWorkoutDate.setHours(0, 0, 0, 0);
+            
+            const daysBetween = (lastWorkoutDate - currentWorkoutDate) / (1000 * 60 * 60 * 24);
+
+            if (daysBetween === 1) {
+                streak++;
+            } else if (daysBetween > 1) {
+                break; // Streak is broken
+            }
+            // If daysBetween is 0, it's the same day, so we continue without incrementing streak
+            
+            lastWorkoutDate = currentWorkoutDate;
+        }
+
+        res.json({ streak });
+    } catch (error) {
+        console.error('Error calculating workout streak:', error);
+        res.status(500).send('Failed to calculate streak.');
+    }
+});
+
+// Get all workouts for a user, populating template data
+app.get('/api/all-workouts', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    const workoutsCollection = db.collection('workouts');
+    try {
+        const allWorkouts = await workoutsCollection.aggregate([
+            { $match: { userId: new ObjectId(req.session.user.id) } },
+            { $sort: { date: -1 } },
+            {
+                $lookup: {
+                    from: 'workout_templates',
+                    localField: 'templateId',
+                    foreignField: '_id',
+                    as: 'templateDetails'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$templateDetails',
+                    preserveNullAndEmptyArrays: true // Keep workouts even if template is deleted
+                }
+            }
+        ]).toArray();
+        res.json(allWorkouts);
+    } catch (error) {
+        console.error('Error fetching all workouts:', error);
+        res.status(500).send('Failed to fetch all workouts.');
+    }
+});
+
+// Get a single workout
+app.get('/api/workouts/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).send('Invalid workout ID.');
+    
+    const db = client.db('webprog');
+    const workout = await db.collection('workouts').findOne({
+        _id: new ObjectId(id),
+        userId: new ObjectId(req.session.user.id)
+    });
+
+    if (!workout) return res.status(404).send('Workout not found.');
+    res.json(workout);
+});
+
+// Update a workout
+app.put('/api/workouts/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).send('Invalid workout ID.');
+
+    const { duration, date, time, notes } = req.body;
+    const db = client.db('webprog');
+
+    try {
+        const result = await db.collection('workouts').updateOne(
+            { _id: new ObjectId(id), userId: new ObjectId(req.session.user.id) },
+            { $set: {
+                duration: parseInt(duration, 10),
+                date: new Date(`${date}T${time}`),
+                notes
+            }}
+        );
+        if (result.matchedCount === 0) return res.status(404).send('Workout not found.');
+        res.json({ message: 'Workout updated successfully.' });
+    } catch (error) {
+        console.error('Error updating workout:', error);
+        res.status(500).send('Failed to update workout.');
+    }
+});
+
+// Delete a workout
+app.delete('/api/workouts/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).send('Invalid workout ID.');
+    const db = client.db('webprog');
+    
+    try {
+        const result = await db.collection('workouts').deleteOne({
+            _id: new ObjectId(id),
+            userId: new ObjectId(req.session.user.id)
+        });
+        if (result.deletedCount === 0) return res.status(404).send('Workout not found.');
+        res.status(200).json({ message: 'Workout deleted successfully.' });
+    } catch (error) {
+        console.error('Error deleting workout:', error);
+        res.status(500).send('Failed to delete workout.');
     }
 });
 

@@ -90,6 +90,45 @@
         </div>
     </div>
 
+    <!-- Edit Workout Modal -->
+    <div class="modal fade" id="editWorkoutModal" tabindex="-1" aria-labelledby="editWorkoutModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editWorkoutModalLabel">Edit Workout</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editWorkoutForm">
+                        <input type="hidden" id="editWorkoutId">
+                        <div class="mb-3">
+                            <label for="editWorkoutDuration" class="form-label">Duration (minutes)</label>
+                            <input type="number" class="form-control" id="editWorkoutDuration" name="duration" min="1" required>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="editWorkoutDate" class="form-label">Date</label>
+                                <input type="date" class="form-control" id="editWorkoutDate" name="date" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editWorkoutTime" class="form-label">Time</label>
+                                <input type="time" class="form-control" id="editWorkoutTime" name="time" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editWorkoutNotes" class="form-label">Notes (optional)</label>
+                            <textarea class="form-control" id="editWorkoutNotes" name="notes" rows="3"></textarea>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="d-flex">
         <!-- Sidebar -->
         <div class="sidebar">

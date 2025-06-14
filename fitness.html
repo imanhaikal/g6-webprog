@@ -97,53 +97,80 @@
                     <div class="col-lg-7 mb-4 mb-lg-0">
                         <form id="logWorkoutForm">
                             <div class="mb-3">
-                                <label for="workoutTemplate" class="form-label">Workout Template</label>
-                                <select class="form-select" id="workoutTemplate">
-                                    <option selected disabled>Select a template or create new</option>
-                                    <option value="legDay">Leg Day Routine</option>
-                                    <option value="upperBody">Upper Body Workout</option>
-                                    <option value="fullBody">Full Body Circuit</option>
-                                    <option value="cardioMix">Cardio Mix</option>
-                                    <option value="custom">Create Custom Template</option>
-                                </select>
-                            </div>
-                            <div id="customTemplateFields" class="d-none">
-                                <div class="mb-3">
-                                    <label for="customTemplateName" class="form-label">Template Name</label>
-                                    <input type="text" class="form-control" id="customTemplateName" placeholder="e.g., My HIIT Workout">
+                                <label class="form-label">How would you like to log?</label>
+                                <div class="btn-group w-100" role="group" id="logWorkoutType">
+                                    <input type="radio" class="btn-check" name="workoutType" id="logFromTemplate" value="template" autocomplete="off" checked>
+                                    <label class="btn btn-outline-primary" for="logFromTemplate">From a Template</label>
+
+                                    <input type="radio" class="btn-check" name="workoutType" id="logSingleWorkout" value="single" autocomplete="off">
+                                    <label class="btn btn-outline-primary" for="logSingleWorkout">As a Single Workout</label>
                                 </div>
+                            </div>
+
+                            <div id="logFromTemplateContainer">
                                 <div class="mb-3">
-                                    <button type="button" class="btn btn-sm btn-outline-primary" id="addExerciseBtn">
+                                    <label for="workoutTemplate" class="form-label">Workout Template</label>
+                                    <select class="form-select" id="workoutTemplate" name="templateId">
+                                        <option selected disabled value="">Select a template or create new</option>
+                                        <!-- Templates will be populated by JS -->
+                                        <option value="custom">Create Custom Template...</option>
+                                    </select>
+                                </div>
+                                <div id="templateExerciseList" class="mb-3">
+                                    <!-- Exercises for the selected template will be displayed here -->
+                                </div>
+                                <div id="customTemplateFields" class="d-none">
+                                    <div class="mb-3 p-3 border rounded">
+                                        <h6 class="mb-3">Create New Template</h6>
+                                        <div class="mb-3">
+                                            <label for="customTemplateName" class="form-label">Template Name</label>
+                                            <input type="text" class="form-control" id="customTemplateName" placeholder="e.g., My HIIT Workout">
+                                        </div>
+                                        <div id="exerciseFields">
+                                            <!-- Exercise fields will be added here dynamically -->
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="addExerciseBtn">
+                                            <i class="bi bi-plus-circle me-2"></i>Add Exercise
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="logSingleWorkoutContainer" class="d-none">
+                                <div class="mb-3 p-3 border rounded">
+                                    <h6 class="mb-3">Log a Single Workout</h6>
+                                    <div id="singleWorkoutExerciseFields">
+                                        <!-- Exercise fields will be added here dynamically -->
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="addSingleExerciseBtn">
                                         <i class="bi bi-plus-circle me-2"></i>Add Exercise
                                     </button>
                                 </div>
-                                <div id="exerciseFields">
-                                    <!-- Exercise fields will be added here dynamically -->
-                                </div>
                             </div>
+                            
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label for="workoutDuration" class="form-label">Total Duration (minutes)</label>
-                                    <input type="number" class="form-control" id="workoutDuration" min="1">
+                                    <input type="number" class="form-control" id="workoutDuration" name="duration" min="1" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="workoutCalories" class="form-label">Calories Burned (optional)</label>
-                                    <input type="number" class="form-control" id="workoutCalories" min="0">
+                                    <input type="number" class="form-control" id="workoutCalories" name="calories" min="0">
                                 </div>
                             </div>
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label for="workoutDate" class="form-label">Date</label>
-                                    <input type="date" class="form-control" id="workoutDate">
+                                    <input type="date" class="form-control" id="workoutDate" name="date" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="workoutTime" class="form-label">Time</label>
-                                    <input type="time" class="form-control" id="workoutTime">
+                                    <input type="time" class="form-control" id="workoutTime" name="time" required>
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label for="workoutNotes" class="form-label">Notes (optional)</label>
-                                <textarea class="form-control" id="workoutNotes" rows="2"></textarea>
+                                <textarea class="form-control" id="workoutNotes" name="notes" rows="2"></textarea>
                             </div>
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-plus-circle me-2"></i>Log Workout
@@ -154,7 +181,7 @@
                         <div class="mb-4 text-center">
                             <h5 class="mb-3"><i class="bi bi-fire me-2"></i>Workout Streak</h5>
                             <div class="streak-container">
-                                <div class="streak-number display-1 fw-bold text-warning">0</div>
+                                <div id="workoutStreak" class="streak-number display-1 fw-bold text-warning">0</div>
                                 <p class="lead mb-1">Days</p>
                                 <div class="streak-details">
                                     <span class="badge bg-warning text-dark mb-2">Keep Going!</span>
@@ -163,10 +190,10 @@
                             </div>
                         </div>
                         <h5 class="mb-3"><i class="bi bi-list-check me-2"></i>Recent Workouts</h5>
-                        <div class="list-group mb-3">
+                        <div class="list-group mb-3" id="recent-workouts-list">
                             <!-- Content will be dynamically added by JavaScript -->
                         </div>
-                        <a href="#" class="btn btn-outline-success btn-sm">View All Workouts</a>
+                        <button class="btn btn-outline-success btn-sm" data-page="workouts">View All Workouts</button>
                     </div>
                 </div>
             </div>
