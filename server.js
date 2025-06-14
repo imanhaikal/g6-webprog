@@ -591,6 +591,122 @@ app.delete('/api/workouts/:id', authMiddleware, async (req, res) => {
     }
 });
 
+// --- Steps ---
+// POST /api/steps - Log a new steps entry
+app.post('/api/steps', authMiddleware, async (req, res) => {
+    const { steps, distance, distanceUnit, duration, date, time } = req.body;
+    const db = client.db('webprog');
+    try {
+        await db.collection('steps').insertOne({
+            userId: new ObjectId(req.session.user.id),
+            steps: parseInt(steps, 10),
+            distance: parseFloat(distance),
+            distanceUnit,
+            duration: parseInt(duration, 10),
+            date: new Date(`${date}T${time}`),
+            source: 'manual',
+            createdAt: new Date()
+        });
+        res.status(201).json({ message: 'Steps logged successfully.' });
+    } catch (error) {
+        console.error('Error logging steps:', error);
+        res.status(500).send('Failed to log steps.');
+    }
+});
+
+// GET /api/steps - Get recent step entries
+app.get('/api/steps', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    try {
+        const steps = await db.collection('steps')
+            .find({ userId: new ObjectId(req.session.user.id) })
+            .sort({ date: -1 })
+            .limit(5)
+            .toArray();
+        res.json(steps);
+    } catch (error) {
+        console.error('Error fetching recent steps:', error);
+        res.status(500).send('Failed to fetch recent steps.');
+    }
+});
+
+// GET /api/steps/all - Get all step entries
+app.get('/api/steps/all', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    try {
+        const allSteps = await db.collection('steps')
+            .find({ userId: new ObjectId(req.session.user.id) })
+            .sort({ date: -1 })
+            .toArray();
+        res.json(allSteps);
+    } catch (error) {
+        console.error('Error fetching all steps:', error);
+        res.status(500).send('Failed to fetch all steps.');
+    }
+});
+
+// GET /api/steps/:id - Get a single step entry
+app.get('/api/steps/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).send('Invalid steps ID.');
+    const db = client.db('webprog');
+    const entry = await db.collection('steps').findOne({
+        _id: new ObjectId(id),
+        userId: new ObjectId(req.session.user.id)
+    });
+    if (!entry) return res.status(404).send('Entry not found.');
+    res.json(entry);
+});
+
+// PUT /api/steps/:id - Update a step entry
+app.put('/api/steps/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).send('Invalid steps ID.');
+    const { steps, distance, distanceUnit, duration, date, time } = req.body;
+    const db = client.db('webprog');
+    try {
+        const result = await db.collection('steps').updateOne(
+            { _id: new ObjectId(id), userId: new ObjectId(req.session.user.id) },
+            { $set: {
+                steps: parseInt(steps, 10),
+                distance: parseFloat(distance),
+                distanceUnit,
+                duration: parseInt(duration, 10),
+                date: new Date(`${date}T${time}`)
+            }}
+        );
+        if (result.matchedCount === 0) return res.status(404).send('Entry not found.');
+        res.json({ message: 'Steps entry updated successfully.' });
+    } catch (error) {
+        console.error('Error updating steps entry:', error);
+        res.status(500).send('Failed to update entry.');
+    }
+});
+
+// DELETE /api/steps/:id - Delete a step entry
+app.delete('/api/steps/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).send('Invalid steps ID.');
+    const db = client.db('webprog');
+    try {
+        const result = await db.collection('steps').deleteOne({
+            _id: new ObjectId(id),
+            userId: new ObjectId(req.session.user.id)
+        });
+        if (result.deletedCount === 0) return res.status(404).send('Entry not found.');
+        res.json({ message: 'Steps entry deleted successfully.' });
+    } catch (error) {
+        console.error('Error deleting steps entry:', error);
+        res.status(500).send('Failed to delete entry.');
+    }
+});
+
+// --- Config ---
+// Endpoint to provide the Mapbox token to the client
+app.get('/api/mapbox-token', authMiddleware, (req, res) => {
+    res.json({ token: process.env.MAPBOX_ACCESS_TOKEN });
+});
+
 // --- Static Files ---
 // This must come AFTER the routes
 app.use(express.static(path.join(__dirname)));

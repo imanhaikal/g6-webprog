@@ -10,6 +10,17 @@
     <link rel="stylesheet" href="css/index.css">
     <link rel="stylesheet" href="css/progress.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Mapbox GL JS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+    
+    <!-- Mapbox Geocoder -->
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js"></script>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css" type="text/css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <!-- Modals: Login, Register -->
@@ -129,6 +140,59 @@
         </div>
     </div>
 
+    <!-- Edit Steps Modal -->
+    <div class="modal fade" id="editStepsModal" tabindex="-1" aria-labelledby="editStepsModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editStepsModalLabel">Edit Steps Entry</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editStepsForm">
+                        <input type="hidden" id="editStepsId">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editStepsCount" class="form-label">Number of Steps</label>
+                                <input type="number" class="form-control" id="editStepsCount" name="steps" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editStepsDuration" class="form-label">Duration (minutes)</label>
+                                <input type="number" class="form-control" id="editStepsDuration" name="duration" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editStepsDistance" class="form-label">Distance</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" class="form-control" id="editStepsDistance" name="distance" required>
+                                    <select class="form-select" id="editDistanceUnit" name="distanceUnit" style="max-width: 80px;">
+                                        <option value="km">km</option>
+                                        <option value="miles">miles</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editStepsDate" class="form-label">Date</label>
+                                <input type="date" class="form-control" id="editStepsDate" name="date" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editStepsTime" class="form-label">Time</label>
+                                <input type="time" class="form-control" id="editStepsTime" name="time" required>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="d-flex">
         <!-- Sidebar -->
         <div class="sidebar">
@@ -154,11 +218,11 @@
                         </ul>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-page="fitness"><i class="bi bi-bicycle"></i> Fitness Tracker</a>
-                         <ul class="nav flex-column ms-3">
-                            <li class="nav-item"><a class="nav-link sub-nav-link" data-page="fitness" data-section="fitness-log-activities">Log Activities</a></li>
-                            <li class="nav-item"><a class="nav-link sub-nav-link" data-page="fitness" data-section="fitness-log-workout">Log Workout</a></li>
-                            <li class="nav-item"><a class="nav-link sub-nav-link" data-page="fitness" data-section="fitness-log-steps">Log Steps</a></li>
+                        <a class="nav-link has-submenu" href="#" data-page="fitness"><i class="bi bi-heart-pulse-fill me-2"></i>Fitness</a>
+                        <ul class="nav flex-column">
+                            <li class="nav-item"><a class="nav-link sub-nav-link" href="#" data-page="fitness" data-section="fitness-log-activity">Log Activity</a></li>
+                            <li class="nav-item"><a class="nav-link sub-nav-link" href="#" data-page="fitness" data-section="fitness-log-workout">Log Workout</a></li>
+                            <li class="nav-item"><a class="nav-link sub-nav-link" href="#" data-page="fitness" data-section="fitness-log-steps">Log Steps</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
@@ -173,6 +237,14 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" data-page="notifications"><i class="bi bi-bell-fill"></i> Notifications</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link has-submenu" href="#" data-page="history"><i class="bi bi-clock-history me-2"></i>History</a>
+                        <ul class="nav flex-column">
+                            <li class="nav-item"><a class="nav-link sub-nav-link" href="#" data-page="activities">All Activities</a></li>
+                            <li class="nav-item"><a class="nav-link sub-nav-link" href="#" data-page="workouts">All Workouts</a></li>
+                            <li class="nav-item"><a class="nav-link sub-nav-link" href="#" data-page="steps">All Steps</a></li>
+                        </ul>
                     </li>
                      <li class="nav-item mt-3">
                         <a class="nav-link" data-page="project-info"><i class="bi bi-info-circle-fill"></i> Project Info</a>

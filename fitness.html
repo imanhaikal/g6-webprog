@@ -201,113 +201,96 @@
 
         <!-- Log Steps Section -->
         <div class="card mb-4">
-            <div class="card-header-custom" id="fitness-log-steps"><i class="bi bi-map me-2"></i>Log Steps</div>
+            <div class="card-header-custom" id="fitness-log-steps"><i class="bi bi-map me-2"></i>Log Steps & Route Finder</div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-lg-7 mb-4 mb-lg-0">
-                        <form id="logStepsForm">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="stepsCount" class="form-label">Number of Steps</label>
-                                    <input type="number" class="form-control" id="stepsCount" min="1">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="stepsDistance" class="form-label">Distance (km)</label>
-                                    <input type="number" class="form-control" id="stepsDistance" min="0" step="0.01">
-                                </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Manual Entry</h5>
+                                <form id="logStepsForm">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="stepsCount" class="form-label">Number of Steps</label>
+                                            <input type="number" class="form-control" id="stepsCount" name="steps" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="stepsDuration" class="form-label">Duration (minutes)</label>
+                                            <input type="number" class="form-control" id="stepsDuration" name="duration" required>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-12 mb-3">
+                                            <label for="stepsDistance" class="form-label">Distance</label>
+                                            <div class="input-group">
+                                                <input type="number" step="0.01" class="form-control" id="stepsDistance" name="distance" required>
+                                                <select class="form-select" id="distanceUnit" name="distanceUnit" style="max-width: 80px;">
+                                                    <option value="km">km</option>
+                                                    <option value="miles">miles</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="stepsDate" class="form-label">Date</label>
+                                            <input type="date" class="form-control" id="stepsDate" name="date" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="stepsTime" class="form-label">Time</label>
+                                            <input type="time" class="form-control" id="stepsTime" name="time" required>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <button type="submit" class="btn btn-primary">Log Steps</button>
+                                    </div>
+                                </form>
                             </div>
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="stepsDate" class="form-label">Date</label>
-                                    <input type="date" class="form-control" id="stepsDate">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="stepsDuration" class="form-label">Duration (minutes)</label>
-                                    <input type="number" class="form-control" id="stepsDuration" min="1">
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="routeType" class="form-label">Route Type</label>
-                                <select class="form-select" id="routeType">
-                                    <option selected disabled>Select route type</option>
-                                    <option value="walking">Walking</option>
-                                    <option value="running">Running</option>
-                                    <option value="hiking">Hiking</option>
-                                    <option value="cycling">Cycling</option>
-                                </select>
-                            </div>
-                            <div class="mb-4">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="" id="useGeotracking">
-                                    <label class="form-check-label" for="useGeotracking">
-                                        Use geo-tracking for this route
-                                    </label>
-                                </div>
-                            </div>
-                            <div id="mapContainer" class="mb-3 d-none">
-                                <label class="form-label">Select Route on Map</label>
-                                <div class="ratio ratio-16x9 border rounded" style="height: 300px;">
-                                    <div class="bg-light d-flex align-items-center justify-content-center">
-                                        <p class="text-muted"><i class="bi bi-map me-2"></i>Map will appear here</p>
+                        </div>
+
+                        <div class="card mt-4">
+                             <div class="card-body">
+                                <h5 class="card-title">Route Finder</h5>
+                                <p class="card-subtitle text-muted mb-3">Find a nearby route to pre-fill distance and duration.</p>
+                                <div class="mb-3">
+                                    <label class="form-label">Activity Type:</label>
+                                    <div class="btn-group w-100" role="group" id="routeTypeSelector">
+                                        <input type="radio" class="btn-check" name="routeType" id="routeWalking" value="walking" autocomplete="off" checked>
+                                        <label class="btn btn-outline-primary" for="routeWalking"><i class="bi bi-person-walking me-1"></i> Walking</label>
+                                
+                                        <input type="radio" class="btn-check" name="routeType" id="routeRunning" value="running" autocomplete="off">
+                                        <label class="btn btn-outline-primary" for="routeRunning"><i class="bi bi-person-running me-1"></i> Running</label>
+
+                                        <input type="radio" class="btn-check" name="routeType" id="routeCycling" value="cycling" autocomplete="off">
+                                        <label class="btn btn-outline-primary" for="routeCycling"><i class="bi bi-bicycle me-1"></i> Cycling</label>
                                     </div>
                                 </div>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="makeRoundTrip">
+                                    <label class="form-check-label" for="makeRoundTrip">
+                                        Make it a round trip
+                                    </label>
+                                </div>
+                                <button type="button" class="btn btn-secondary" id="findRoutesBtn">
+                                    <i class="bi bi-geo-alt-fill"></i> Find Nearby Routes
+                                </button>
+                                <div id="map" style="height: 300px; width: 100%; margin-top: 15px; display: none;"></div>
                             </div>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-plus-circle me-2"></i>Log Steps
-                            </button>
-                        </form>
+                        </div>
                     </div>
                     <div class="col-lg-5">
-                        <div class="mb-4 text-center">
-                            <h5 class="mb-3"><i class="bi bi-shoe-prints me-2"></i>Today's Step Count</h5>
-                            <div class="step-counter">
-                                <span class="display-1 fw-bold text-primary">0</span>
-                                <p class="lead mb-0">steps</p>
-                            </div>
-                            <div class="progress mt-3">
-                                <div class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                            </div>
-                            <p class="text-muted mt-2 mb-0">Daily Goal: 10,000 steps</p>
-                        </div>
-                        <h5 class="mb-3"><i class="bi bi-compass me-2"></i>Popular Routes Nearby</h5>
-                        <div class="list-group mb-3">
-                            <div class="list-group-item">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">Petaling Jaya</h6>
-                                    <span class="badge bg-success rounded-pill">Easy</span>
-                                </div>
-                                <p class="mb-1">Running • 5.2 km • ~35 min</p>
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="bi bi-star-fill text-warning"></i>
-                                    <small>4.8 (120 ratings)</small>
-                                </div>
-                            </div>
-                            <div class="list-group-item">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">Rimba Ilmu</h6>
-                                    <span class="badge bg-warning text-dark rounded-pill">Moderate</span>
-                                </div>
-                                <p class="mb-1">Hiking • 8.6 km • ~90 min</p>
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="bi bi-star-fill text-warning"></i>
-                                    <small>4.6 (85 ratings)</small>
-                                </div>
-                            </div>
-                            <div class="list-group-item">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">Bukit Cinta</h6>
-                                    <span class="badge bg-danger rounded-pill">Challenging</span>
-                                </div>
-                                <p class="mb-1">Cycling • 12.8 km • ~75 min</p>
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="bi bi-star-fill text-warning"></i>
-                                    <small>4.7 (62 ratings)</small>
-                                </div>
+                        <div class="mb-4">
+                            <h5 class="mb-3"><i class="bi bi-list-check me-2"></i>Recent Step Entries</h5>
+                            <div id="recent-steps-list" class="list-group mb-3">
+                                <!-- Recent steps will be loaded here -->
                             </div>
                         </div>
-                        <div class="d-flex gap-2">
-                            <a href="#" class="btn btn-outline-info btn-sm">View All Routes</a>
-                            <a href="#" class="btn btn-outline-success btn-sm">Create New Route</a>
+                        
+                        <div>
+                            <h5 class="mb-3"><i class="bi bi-compass me-2"></i>Suggested Routes</h5>
+                            <div id="routesContainer">
+                                <!-- Nearby routes will be loaded here -->
+                            </div>
                         </div>
                     </div>
                 </div>

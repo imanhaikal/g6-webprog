@@ -139,6 +139,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (page === 'workouts') {
                             displayAllWorkouts();
                         }
+
+                        // Initialize all steps page
+                        if (page === 'steps') {
+                            displayAllSteps();
+                        }
                     } else {
                         throw new Error('Content element not found in the loaded page');
                     }
@@ -464,6 +469,14 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Initialize workout functionality
             initializeWorkoutLogger();
+
+            // Initialize steps functionality
+            const logStepsForm = document.getElementById('logStepsForm');
+            if (logStepsForm) {
+                logStepsForm.addEventListener('submit', handleStepsSubmit);
+            }
+            displayRecentSteps();
+            initializeRouteFinder();
         }
 
         // --- Workout Logger Functions ---
@@ -983,6 +996,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
+            // Handle steps deletion
+            else if (event.target.closest('.delete-steps-btn')) {
+                const stepsElement = event.target.closest('[data-steps-id]');
+                if (stepsElement) {
+                    const stepsId = stepsElement.dataset.stepsId;
+                    if (confirm('Are you sure you want to delete this entry?')) {
+                        deleteSteps(stepsId);
+                    }
+                }
+            }
         });
 
         const editActivityModal = document.getElementById('editActivityModal');
@@ -1086,6 +1109,49 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        const editStepsModal = document.getElementById('editStepsModal');
+        if (editStepsModal) {
+            editStepsModal.addEventListener('show.bs.modal', async function(event) {
+                const button = event.relatedTarget;
+                const stepsElement = button.closest('[data-steps-id]');
+                const stepsId = stepsElement.dataset.stepsId;
+                try {
+                    const response = await fetch(`/api/steps/${stepsId}`);
+                    if (!response.ok) throw new Error('Could not fetch entry details.');
+                    const entry = await response.json();
+                    
+                    const entryDate = new Date(entry.date);
+                    document.getElementById('editStepsId').value = entry._id;
+                    document.getElementById('editStepsCount').value = entry.steps;
+                    document.getElementById('editStepsDuration').value = entry.duration;
+                    document.getElementById('editStepsDistance').value = entry.distance;
+                    document.getElementById('editDistanceUnit').value = entry.distanceUnit;
+                    document.getElementById('editStepsDate').value = entryDate.toISOString().split('T')[0];
+                    document.getElementById('editStepsTime').value = entryDate.toTimeString().split(' ')[0].substring(0, 5);
+                } catch (error) {
+                    console.error('Error populating steps edit form:', error);
+                    alert('Could not load entry details for editing.');
+                }
+            });
+        }
+
+        const editStepsForm = document.getElementById('editStepsForm');
+        if (editStepsForm) {
+            editStepsForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const stepsId = document.getElementById('editStepsId').value;
+                const updatedSteps = {
+                    steps: document.getElementById('editStepsCount').value,
+                    duration: document.getElementById('editStepsDuration').value,
+                    distance: document.getElementById('editStepsDistance').value,
+                    distanceUnit: document.getElementById('editDistanceUnit').value,
+                    date: document.getElementById('editStepsDate').value,
+                    time: document.getElementById('editStepsTime').value,
+                };
+                updateSteps(stepsId, updatedSteps);
+            });
+        }
+
         async function deleteActivity(activityId, elementToRemove) {
             try {
                 const response = await fetch(`/delete-activity/${activityId}`, {
@@ -1102,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if(container && container.children.length === 0){
                         container.innerHTML = '<div class="list-group-item text-center text-muted">No activities have been logged yet.</div>';
                     }
-                } else {
+            } else {
                     const error = await response.text();
                     alert(`Error deleting activity: ${error}`);
                 }
@@ -1125,6 +1191,21 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (err) {
                 console.error('Failed to delete workout:', err);
                 alert('An error occurred while trying to delete the workout.');
+            }
+        }
+
+        async function deleteSteps(stepsId) {
+            try {
+                const response = await fetch(`/api/steps/${stepsId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    if (document.getElementById('all-steps-list')) displayAllSteps();
+                    if (document.getElementById('recent-steps-list')) displayRecentSteps();
+                } else {
+                    alert(`Error deleting entry: ${await response.text()}`);
+                }
+            } catch (err) {
+                console.error('Failed to delete steps entry:', err);
+                alert('An error occurred while trying to delete the entry.');
             }
         }
 
@@ -1170,6 +1251,27 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (err) {
                 console.error('Failed to update workout:', err);
                 alert('An error occurred while trying to update the workout.');
+            }
+        }
+
+        async function updateSteps(stepsId, data) {
+            try {
+                const response = await fetch(`/api/steps/${stepsId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+                if (response.ok) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('editStepsModal'));
+                    modal.hide();
+                    if (document.getElementById('all-steps-list')) displayAllSteps();
+                    if (document.getElementById('recent-steps-list')) displayRecentSteps();
+                } else {
+                    alert(`Error updating entry: ${await response.text()}`);
+                }
+            } catch (err) {
+                console.error('Failed to update steps entry:', err);
+                alert('An error occurred while trying to update the entry.');
             }
         }
 
@@ -1265,5 +1367,305 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 console.error('Error displaying all workouts:', error);
                 container.innerHTML = '<div class="text-center text-danger">Could not load workouts.</div>';
+            }
+        }
+
+        async function displayRecentSteps() {
+            const container = document.getElementById('recent-steps-list');
+            if (!container) return;
+            container.innerHTML = '';
+            try {
+                const response = await fetch('/api/steps');
+                if (!response.ok) throw new Error('Failed to fetch steps');
+                const steps = await response.json();
+
+                if (steps.length === 0) {
+                    container.innerHTML = '<div class="list-group-item text-center text-muted">No steps logged yet.</div>';
+                    return;
+                }
+
+                let stepsHTML = '';
+                steps.forEach(s => {
+                    const formattedDate = new Date(s.date).toLocaleString('en-US', {
+                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    });
+                    stepsHTML += `
+                        <div class="list-group-item" data-steps-id="${s._id}">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div>
+                                    <h6 class="mb-1">${(s.steps || 0).toLocaleString()} steps</h6>
+                                    <p class="mb-1 small">${s.distance} ${s.distanceUnit} | ${s.duration} min</p>
+                                </div>
+                                <div class="d-flex flex-column align-items-end">
+                                    <small class="text-muted mb-2">${formattedDate}</small>
+                                    <div>
+                                        <button class="btn btn-outline-primary btn-sm me-2 edit-steps-btn" data-bs-toggle="modal" data-bs-target="#editStepsModal">
+                                            <i class="bi bi-pencil-square"></i> Edit
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm delete-steps-btn">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+                container.innerHTML = stepsHTML;
+            } catch (error) {
+                console.error('Error displaying recent steps:', error);
+                container.innerHTML = '<div class="list-group-item text-center text-danger">Could not load steps.</div>';
+            }
+        }
+
+        async function displayAllSteps() {
+            const container = document.getElementById('all-steps-list');
+            if (!container) return;
+            container.innerHTML = '<div class="text-center">Loading...</div>';
+            try {
+                const response = await fetch('/api/steps/all');
+                if (!response.ok) throw new Error('Failed to fetch all steps');
+                const steps = await response.json();
+
+                if (steps.length === 0) {
+                    container.innerHTML = '<div class="list-group-item text-center text-muted">No steps logged yet.</div>';
+                    return;
+                }
+
+                let stepsHTML = '';
+                steps.forEach(s => {
+                    const formattedDate = new Date(s.date).toLocaleString('en-US', {
+                        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    });
+                    stepsHTML += `
+                        <div class="list-group-item" data-steps-id="${s._id}">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div>
+                                    <h6 class="mb-1">${(s.steps || 0).toLocaleString()} steps</h6>
+                                    <p class="mb-1">${s.distance} ${s.distanceUnit} | ${s.duration} minutes</p>
+                                </div>
+                                <div class="d-flex flex-column align-items-end">
+                                    <small class="text-muted mb-2">${formattedDate}</small>
+                                    <div>
+                                        <button class="btn btn-outline-primary btn-sm me-2 edit-steps-btn" data-bs-toggle="modal" data-bs-target="#editStepsModal">
+                                            <i class="bi bi-pencil-square"></i> Edit
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm delete-steps-btn">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+                container.innerHTML = stepsHTML;
+            } catch (error) {
+                console.error('Error displaying all steps:', error);
+                container.innerHTML = '<div class="list-group-item text-center text-danger">Could not load steps.</div>';
+            }
+        }
+
+        async function handleStepsSubmit(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const response = await fetch('/api/steps', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText);
+                }
+                form.reset();
+                displayRecentSteps();
+            } catch (error) {
+                console.error('Error logging steps:', error);
+                alert(`Failed to log steps: ${error.message}`);
+            }
+        }
+
+        async function initializeRouteFinder() {
+            const findRoutesBtn = document.getElementById('findRoutesBtn');
+            if (findRoutesBtn) {
+                findRoutesBtn.addEventListener('click', findNearbyRoutes);
+            }
+        }
+        
+        async function findNearbyRoutes() {
+            const routesContainer = document.getElementById('routesContainer');
+            const mapContainer = document.getElementById('map');
+            routesContainer.innerHTML = '<div class="text-center text-muted">Getting your location...</div>';
+            
+            if (!navigator.geolocation) {
+                routesContainer.innerHTML = '<div class="text-danger">Geolocation is not supported by your browser.</div>';
+                return;
+            }
+
+            try {
+                // Fetch Mapbox token
+                const tokenResponse = await fetch('/api/mapbox-token');
+                if (!tokenResponse.ok) throw new Error('Could not retrieve Mapbox token.');
+                const { token } = await tokenResponse.json();
+                mapboxgl.accessToken = token;
+
+                navigator.geolocation.getCurrentPosition(async (position) => {
+                    const { longitude, latitude } = position.coords;
+                    
+                    mapContainer.style.display = 'block';
+                    const map = new mapboxgl.Map({
+                        container: 'map',
+                        style: 'mapbox://styles/mapbox/streets-v11',
+                        center: [longitude, latitude],
+                        zoom: 13
+                    });
+
+                    // Add marker for user's location
+                    new mapboxgl.Marker().setLngLat([longitude, latitude]).addTo(map);
+
+                    const selectedProfile = document.querySelector('input[name="routeType"]:checked').value || 'walking';
+                    routesContainer.innerHTML = `<div class="text-center text-muted">Searching for nearby ${selectedProfile} routes...</div>`;
+
+                    // Always fetch cycling routes for more interesting paths, but keep track of the user's selected profile.
+                    const apiProfile = 'cycling';
+
+                    // Generate three destinations in different directions to get varied routes.
+                    const destinations = [
+                        { lon: longitude + 0.01, lat: latitude + 0.01 }, // NE
+                        { lon: longitude + 0.01, lat: latitude - 0.01 }, // SE
+                        { lon: longitude - 0.01, lat: latitude + 0.005 } // NW
+                    ];
+                    
+                    const isRoundTrip = document.getElementById('makeRoundTrip').checked;
+
+                    const routePromises = destinations.map(dest => {
+                        let coordinates = `${longitude},${latitude};${dest.lon},${dest.lat}`;
+                        if (isRoundTrip) {
+                            coordinates += `;${longitude},${latitude}`;
+                        }
+                        const url = `https://api.mapbox.com/directions/v5/mapbox/${apiProfile}/${coordinates}?alternatives=true&geometries=geojson&steps=true&access_token=${token}`;
+                        return fetch(url).then(res => res.json());
+                    });
+                    
+                    const results = await Promise.all(routePromises);
+
+                    const allRoutes = results.flatMap(result => (result.routes && result.routes.length > 0) ? result.routes : []);
+
+                    if (allRoutes.length > 0) {
+                        displayRoutes(allRoutes, map, selectedProfile);
+                    } else {
+                        routesContainer.innerHTML = `<div class="text-center text-muted">No ${selectedProfile} routes found nearby.</div>`;
+                    }
+                }, (error) => {
+                    console.error('Geolocation error:', error);
+                    routesContainer.innerHTML = `<div class="text-danger">Could not get your location: ${error.message}</div>`;
+                });
+
+            } catch (error) {
+                console.error('Error in findNearbyRoutes:', error);
+                routesContainer.innerHTML = `<div class="text-danger">An error occurred: ${error.message}</div>`;
+            }
+        }
+
+        function displayRoutes(routes, map, profile) {
+            const container = document.getElementById('routesContainer');
+            container.innerHTML = ''; // Clear loading message
+            
+            // Function to clear highlights
+            const clearHighlights = () => {
+                map.getStyle().layers.forEach(layer => {
+                    if (layer.id.startsWith('route-')) {
+                        map.setPaintProperty(layer.id, 'line-width', 6);
+                        map.setPaintProperty(layer.id, 'line-color', '#A9A9A9');
+                    }
+                });
+                document.querySelectorAll('.list-group-item[data-route-id]').forEach(el => {
+                    el.classList.remove('active');
+                });
+            };
+
+            routes.forEach((route, index) => {
+                const id = `route-${index}`;
+                
+                // Draw route on map
+                map.addSource(id, {
+                    type: 'geojson',
+                    data: { type: 'Feature', properties: {}, geometry: route.geometry }
+                });
+                map.addLayer({
+                    id: id,
+                    type: 'line',
+                    source: id,
+                    layout: { 'line-join': 'round', 'line-cap': 'round' },
+                    paint: { 'line-color': '#A9A9A9', 'line-width': 6, 'line-opacity': 0.75 }
+                });
+                
+                // Add label to the middle of the route
+                const centerPoint = route.geometry.coordinates[Math.floor(route.geometry.coordinates.length / 2)];
+                map.addLayer({
+                    id: `label-${id}`,
+                    type: 'symbol',
+                    source: {
+                        type: 'geojson',
+                        data: { type: 'Feature', properties: { title: `Route ${index + 1}` }, geometry: { type: 'Point', coordinates: centerPoint } }
+                    },
+                    layout: { 'text-field': '{title}', 'text-size': 14, 'text-offset': [0, -1.5] },
+                    paint: { 'text-color': '#000', 'text-halo-color': '#fff', 'text-halo-width': 2 }
+                });
+
+                // Display route details in a list
+                const distanceKm = (route.distance / 1000).toFixed(2);
+                
+                // Recalculate duration for walking if needed
+                let durationMin = Math.round(route.duration / 60);
+                if (profile === 'walking') {
+                    // Estimate walking time is ~5.5x cycling time
+                    durationMin = Math.round((route.duration * 5.5) / 60); 
+                } else if (profile === 'running') {
+                    // Estimate running time is ~2.5x cycling time
+                    durationMin = Math.round((route.duration * 2.5) / 60);
+                }
+
+                const routeEl = document.createElement('div');
+                routeEl.className = 'list-group-item list-group-item-action';
+                routeEl.setAttribute('data-route-id', id);
+                const profileName = profile.charAt(0).toUpperCase() + profile.slice(1);
+                routeEl.innerHTML = `
+                    <h6>${profileName} Route ${index + 1}</h6>
+                    <p class="mb-1">Distance: <strong>${distanceKm} km</strong> | Approx. Duration: <strong>${durationMin} min</strong></p>
+                    <button class="btn btn-sm btn-outline-primary select-route-btn mt-2">Use This Route</button>
+                `;
+
+                const highlightRoute = () => {
+                    clearHighlights();
+                    map.setPaintProperty(id, 'line-width', 8);
+                    map.setPaintProperty(id, 'line-color', '#3887be');
+                    routeEl.classList.add('active');
+                };
+
+                // Add click events
+                map.on('click', id, highlightRoute);
+                routeEl.addEventListener('click', highlightRoute);
+
+                routeEl.querySelector('.select-route-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    document.getElementById('stepsDistance').value = distanceKm;
+                    document.getElementById('stepsDuration').value = durationMin;
+                    document.getElementById('distanceUnit').value = 'km';
+                    const formCard = document.getElementById('logStepsForm').closest('.card');
+                    if (formCard) {
+                        formCard.scrollIntoView({ behavior: 'smooth' });
+                    }
+                    alert('Route details have been added to the form.');
+                });
+                container.appendChild(routeEl);
+            });
+            
+            // Highlight the first route by default
+            if (routes.length > 0) {
+                 document.querySelector('.list-group-item[data-route-id="route-0"]').click();
             }
         }
