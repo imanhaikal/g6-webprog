@@ -1,0 +1,25 @@
+{
+  "name": "g6-webprog",
+  "version": "1.0.0",
+  "description": "This project uses a carefully selected color palette designed to convey health, vitality, and wellness:",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imanhaikal/g6-webprog.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/imanhaikal/g6-webprog/issues"
+  },
+  "homepage": "https://github.com/imanhaikal/g6-webprog#readme",
+  "dependencies": {
+    "express": "^5.1.0",
+    "mongodb": "^6.17.0"
+  }
+}
