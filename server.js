@@ -1,5 +1,5 @@
 const express = require('express');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const path = require('path');
 const bcrypt = require('bcrypt');
@@ -46,7 +46,7 @@ run().catch(console.dir);
 
 // Authentication middleware
 const authMiddleware = (req, res, next) => {
-    if (req.session.user) {
+    if (req.session.user && req.session.user.id && ObjectId.isValid(req.session.user.id)) {
         next();
     } else {
         res.redirect('/login.html');
@@ -71,6 +71,10 @@ app.get('/index.html', authMiddleware, (req, res) => {
 
 app.get('/dashboard.html', authMiddleware, (req, res) => {
     res.sendFile(path.join(__dirname, 'dashboard.html'));
+});
+
+app.get('/activities.html', authMiddleware, (req, res) => {
+    res.sendFile(path.join(__dirname, 'activities.html'));
 });
 
 // Register route
@@ -132,6 +136,183 @@ app.get('/logout', (req, res) => {
         }
         res.redirect('/landing.html');
     });
+});
+
+// Log activity route
+app.post('/log-activity', authMiddleware, async (req, res) => {
+    const {
+        activityName,
+        activityCategory,
+        activityIntensity,
+        activityDuration,
+        activityDate,
+        activityTime,
+        activityCalories,
+        activityNotes
+    } = req.body;
+    const userId = req.session.user.id;
+
+    const db = client.db('webprog');
+    const activitiesCollection = db.collection('activities');
+
+    try {
+        const result = await activitiesCollection.insertOne({
+            userId: new ObjectId(userId),
+            activityType: activityName,
+            category: activityCategory,
+            intensity: activityIntensity,
+            duration: parseInt(activityDuration, 10),
+            date: new Date(`${activityDate}T${activityTime}`),
+            calories: activityCalories ? parseInt(activityCalories, 10) : null,
+            notes: activityNotes
+        });
+        res.status(201).json({ message: 'Activity logged successfully', insertedId: result.insertedId });
+    } catch (error) {
+        console.error('Error logging activity:', error);
+        res.status(500).send('Failed to log activity.');
+    }
+});
+
+// Get recent activities route
+app.get('/get-activities', authMiddleware, async (req, res) => {
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const activitiesCollection = db.collection('activities');
+
+    try {
+        const activities = await activitiesCollection
+            .find({ userId: new ObjectId(userId) })
+            .sort({ date: -1 })
+            .limit(5)
+            .toArray();
+        res.json(activities);
+    } catch (error) {
+        console.error('Error fetching activities:', error);
+        res.status(500).send('Failed to fetch activities.');
+    }
+});
+
+// Get all activities route
+app.get('/get-all-activities', authMiddleware, async (req, res) => {
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const activitiesCollection = db.collection('activities');
+
+    try {
+        const activities = await activitiesCollection
+            .find({ userId: new ObjectId(userId) })
+            .sort({ date: -1 })
+            .toArray();
+        res.json(activities);
+    } catch (error) {
+        console.error('Error fetching all activities:', error);
+        res.status(500).send('Failed to fetch all activities.');
+    }
+});
+
+// Get single activity route (for editing)
+app.get('/get-activity/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    const { user } = req.session;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).send('Invalid activity ID format.');
+    }
+
+    const db = client.db('webprog');
+    const activitiesCollection = db.collection('activities');
+
+    try {
+        const activity = await activitiesCollection.findOne({
+            _id: new ObjectId(id),
+            userId: new ObjectId(user.id)
+        });
+
+        if (!activity) {
+            return res.status(404).send('Activity not found or user not authorized.');
+        }
+
+        res.json(activity);
+    } catch (error) {
+        console.error('Error fetching single activity:', error);
+        res.status(500).send('Failed to fetch activity.');
+    }
+});
+
+// Update activity route
+app.put('/update-activity/:id', authMiddleware, async (req, res) => {
+    const activityId = req.params.id;
+    if (!ObjectId.isValid(activityId)) {
+        return res.status(400).send('Invalid activity ID format.');
+    }
+    const {
+        activityName,
+        category,
+        intensity,
+        duration,
+        date,
+        time,
+        calories,
+        notes
+    } = req.body;
+    const userId = req.session.user.id;
+
+    const db = client.db('webprog');
+    const activitiesCollection = db.collection('activities');
+
+    try {
+        const result = await activitiesCollection.updateOne(
+            { _id: new ObjectId(activityId), userId: new ObjectId(userId) },
+            {
+                $set: {
+                    activityType: activityName,
+                    category,
+                    intensity,
+                    duration: parseInt(duration, 10),
+                    date: new Date(`${date}T${time}`),
+                    calories: calories ? parseInt(calories, 10) : null,
+                    notes
+                }
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).send('Activity not found or user not authorized.');
+        }
+
+        res.json({ message: 'Activity updated successfully' });
+    } catch (error) {
+        console.error('Error updating activity:', error);
+        res.status(500).send('Failed to update activity.');
+    }
+});
+
+// Delete activity route
+app.delete('/delete-activity/:id', authMiddleware, async (req, res) => {
+    const activityId = req.params.id;
+    if (!ObjectId.isValid(activityId)) {
+        return res.status(400).send('Invalid activity ID format.');
+    }
+    const userId = req.session.user.id;
+
+    const db = client.db('webprog');
+    const activitiesCollection = db.collection('activities');
+
+    try {
+        const result = await activitiesCollection.deleteOne({
+            _id: new ObjectId(activityId),
+            userId: new ObjectId(userId)
+        });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).send('Activity not found or user not authorized.');
+        }
+
+        res.status(200).json({ message: 'Activity deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting activity:', error);
+        res.status(500).send('Failed to delete activity.');
+    }
 });
 
 // --- Static Files ---

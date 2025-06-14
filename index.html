@@ -21,6 +21,75 @@
         <!-- Copy register modal content here -->
     </div>
 
+    <!-- Edit Activity Modal -->
+    <div class="modal fade" id="editActivityModal" tabindex="-1" aria-labelledby="editActivityModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editActivityModalLabel">Edit Activity</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editActivityForm">
+                        <input type="hidden" id="editActivityId">
+                        <div class="mb-3">
+                            <label for="editActivityName" class="form-label">Activity Name</label>
+                            <input type="text" class="form-control" id="editActivityName" required>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="editActivityCategory" class="form-label">Category</label>
+                                <select class="form-select" id="editActivityCategory" required>
+                                    <option value="cardio">Cardio</option>
+                                    <option value="strength">Strength Training</option>
+                                    <option value="flexibility">Flexibility</option>
+                                    <option value="sports">Sports</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editActivityIntensity" class="form-label">Intensity Level</label>
+                                <select class="form-select" id="editActivityIntensity" required>
+                                    <option value="light">Light</option>
+                                    <option value="moderate">Moderate</option>
+                                    <option value="intense">Intense</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="editActivityDuration" class="form-label">Duration (minutes)</label>
+                                <input type="number" class="form-control" id="editActivityDuration" min="1" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editActivityCalories" class="form-label">Calories Burned (optional)</label>
+                                <input type="number" class="form-control" id="editActivityCalories" min="0">
+                            </div>
+                        </div>
+                         <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="editActivityDate" class="form-label">Date</label>
+                                <input type="date" class="form-control" id="editActivityDate" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editActivityTime" class="form-label">Time</label>
+                                <input type="time" class="form-control" id="editActivityTime" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editActivityNotes" class="form-label">Notes (optional)</label>
+                            <textarea class="form-control" id="editActivityNotes" rows="2"></textarea>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="d-flex">
         <!-- Sidebar -->
         <div class="sidebar">

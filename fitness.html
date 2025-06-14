@@ -22,16 +22,16 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-lg-7 mb-4 mb-lg-0">
-                        <form id="logActivityForm">
+                        <form id="logActivityForm" action="/log-activity" method="POST">
                             <div class="mb-3">
                                 <label for="activityName" class="form-label">Activity Name</label>
-                                <input type="text" class="form-control" id="activityName" placeholder="e.g., Running, Swimming, Yoga">
+                                <input type="text" class="form-control" id="activityName" name="activityName" placeholder="e.g., Running, Swimming, Yoga" required>
                             </div>
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label for="activityCategory" class="form-label">Category</label>
-                                    <select class="form-select" id="activityCategory">
-                                        <option selected disabled>Select category</option>
+                                    <select class="form-select" id="activityCategory" name="activityCategory" required>
+                                        <option selected disabled value="">Select category</option>
                                         <option value="cardio">Cardio</option>
                                         <option value="strength">Strength Training</option>
                                         <option value="flexibility">Flexibility</option>
@@ -41,8 +41,8 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label for="activityIntensity" class="form-label">Intensity Level</label>
-                                    <select class="form-select" id="activityIntensity">
-                                        <option selected disabled>Select intensity</option>
+                                    <select class="form-select" id="activityIntensity" name="activityIntensity" required>
+                                        <option selected disabled value="">Select intensity</option>
                                         <option value="light">Light</option>
                                         <option value="moderate">Moderate</option>
                                         <option value="intense">Intense</option>
@@ -52,26 +52,26 @@
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label for="activityDuration" class="form-label">Duration (minutes)</label>
-                                    <input type="number" class="form-control" id="activityDuration" min="1">
+                                    <input type="number" class="form-control" id="activityDuration" name="activityDuration" min="1" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="activityCalories" class="form-label">Calories Burned (optional)</label>
-                                    <input type="number" class="form-control" id="activityCalories" min="0">
+                                    <input type="number" class="form-control" id="activityCalories" name="activityCalories" min="0">
                                 </div>
                             </div>
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label for="activityDate" class="form-label">Date</label>
-                                    <input type="date" class="form-control" id="activityDate">
+                                    <input type="date" class="form-control" id="activityDate" name="activityDate" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="activityTime" class="form-label">Time</label>
-                                    <input type="time" class="form-control" id="activityTime">
+                                    <input type="time" class="form-control" id="activityTime" name="activityTime" required>
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label for="activityNotes" class="form-label">Notes (optional)</label>
-                                <textarea class="form-control" id="activityNotes" rows="2"></textarea>
+                                <textarea class="form-control" id="activityNotes" name="activityNotes" rows="2"></textarea>
                             </div>
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-plus-circle me-2"></i>Log Activity
@@ -80,10 +80,10 @@
                     </div>
                     <div class="col-lg-5">
                         <h5 class="mb-3"><i class="bi bi-list-check me-2"></i>Recent Activities</h5>
-                        <div class="list-group mb-3">
+                        <div class="list-group mb-3" id="recent-activities-list">
                             <!-- Content will be dynamically added by JavaScript -->
                         </div>
-                        <a href="#" class="btn btn-outline-success btn-sm">View All Activities</a>
+                        <button type="button" class="btn btn-outline-success btn-sm" data-page="activities">View All Activities</button>
                     </div>
                 </div>
             </div>
