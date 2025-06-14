@@ -1,9 +1,13 @@
 const express = require('express');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 require('dotenv').config();
+const path = require('path');
 
 const app = express();
 const port = 3000;
+
+// Serve static files from the root directory
+app.use(express.static(path.join(__dirname)));
 
 // Use the environment variable for the connection string
 const uri = process.env.MONGO_URI;
@@ -32,7 +36,7 @@ async function run() {
 run().catch(console.dir);
 
 app.get('/', (req, res) => {
-  res.send('Hello World!')
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.listen(port, () => {
