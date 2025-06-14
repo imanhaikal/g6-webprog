@@ -15,6 +15,16 @@
     label="Register form" 
     autocomplete="off">
       <div>
+        <label for="name">Name</label>
+        <input 
+          id="name" 
+          name="name" 
+          type="text" 
+          placeholder="Your full name"
+          required
+        />
+      </div>
+      <div>
         <label for="username">Username</label>
         <input 
           id="username" 
@@ -37,6 +47,38 @@
           aria-required="true" 
           required
         />
+      </div>
+      <div>
+        <label for="age">Age</label>
+        <input 
+          id="age" 
+          name="age" 
+          type="number" 
+          placeholder="Your age"
+          min="1"
+          required
+        />
+      </div>
+      <div class="optional-fields">
+        <div>
+          <label for="weight">Weight (kg)</label>
+          <input 
+            id="weight" 
+            name="weight" 
+            type="number" 
+            placeholder="Optional"
+            step="0.1"
+          />
+        </div>
+        <div>
+          <label for="height">Height (cm)</label>
+          <input 
+            id="height" 
+            name="height" 
+            type="number" 
+            placeholder="Optional"
+          />
+        </div>
       </div>
       <div>
         <label for="password">Password</label>

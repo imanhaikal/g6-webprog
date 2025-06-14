@@ -111,7 +111,7 @@ app.get('/workouts.html', authMiddleware, (req, res) => {
 
 // Register route
 app.post('/register', async (req, res) => {
-    const { username, email, password } = req.body;
+    const { username, email, password, name, age, weight, height } = req.body;
     const db = client.db('webprog');
     const usersCollection = db.collection('users');
     const templatesCollection = db.collection('workout_templates');
@@ -127,6 +127,11 @@ app.post('/register', async (req, res) => {
             username,
             email,
             password: hashedPassword,
+            name: name,
+            age: parseInt(age, 10),
+            weight: weight ? parseFloat(weight) : null,
+            height: height ? parseInt(height, 10) : null,
+            createdAt: new Date()
         });
 
         // Add preset templates for the new user
@@ -705,6 +710,53 @@ app.delete('/api/steps/:id', authMiddleware, async (req, res) => {
 // Endpoint to provide the Mapbox token to the client
 app.get('/api/mapbox-token', authMiddleware, (req, res) => {
     res.json({ token: process.env.MAPBOX_ACCESS_TOKEN });
+});
+
+// --- Profile Management ---
+// GET /api/profile - Fetch user profile data
+app.get('/api/profile', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    try {
+        const user = await db.collection('users').findOne(
+            { _id: new ObjectId(req.session.user.id) },
+            { projection: { password: 0 } } // Exclude password from the result
+        );
+        if (!user) {
+            return res.status(404).send('User not found.');
+        }
+        res.json(user);
+    } catch (error) {
+        console.error('Error fetching profile:', error);
+        res.status(500).send('Failed to fetch profile.');
+    }
+});
+
+// PUT /api/profile - Update user profile data
+app.put('/api/profile', authMiddleware, async (req, res) => {
+    const { name, age, weight, height, goals } = req.body;
+    const db = client.db('webprog');
+
+    try {
+        const result = await db.collection('users').updateOne(
+            { _id: new ObjectId(req.session.user.id) },
+            { 
+                $set: {
+                    name: name,
+                    age: parseInt(age, 10),
+                    weight: parseFloat(weight),
+                    height: parseInt(height, 10),
+                    goals: goals
+                }
+            }
+        );
+        if (result.matchedCount === 0) {
+            return res.status(404).send('User not found.');
+        }
+        res.json({ message: 'Profile updated successfully.' });
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        res.status(500).send('Failed to update profile.');
+    }
 });
 
 // --- Static Files ---

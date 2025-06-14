@@ -76,7 +76,8 @@ input[type="text"],
 input[type="email"],
 input[type="tel"],
 input[type="date"],
-input[type="password"]{
+input[type="password"],
+input[type="number"] {
   width: 100%;
   padding: 12px 14px;
   font-size: 1rem;
@@ -92,10 +93,20 @@ input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="tel"]:focus,
 input[type="date"]:focus,
-input[type="password"]:focus {
+input[type="password"]:focus,
+input[type="number"]:focus {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 6px var(--primary-light);
+}
+
+.optional-fields {
+  display: flex;
+  gap: 18px;
+}
+
+.optional-fields > div {
+  flex: 1;
 }
 
 .buttons {
