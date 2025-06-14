@@ -14,7 +14,7 @@
   <main class="container" role="main" label="Login page">
     <h1>HEALTH & FITNESS TRACKER</h1>
     <h3>Welcome Back</h3>
-    <form label="Login form" autocomplete="off" novalidate>
+    <form action="/login" method="post" label="Login form" autocomplete="off">
       <div>
         <label for="username">Username</label>
         <input 
@@ -40,7 +40,7 @@
         />
       </div>
       <div class="buttons">
-        <a href="index.html" class="login-btn" label="Login Button">Login</a>
+        <button type="submit" class="login-btn" label="Login Button">Login</button>
         <a href="register.html" class="button-link" label="Register New Account Button">Register New Account</a>
       </div>
     </form>
