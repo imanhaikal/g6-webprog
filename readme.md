@@ -1,5 +1,53 @@
 # Health & Fitness Tracker
 
+This is a web application designed to help users track their health and fitness goals. It includes features for monitoring nutrition, workouts, progress, and more.
+
+## Features
+
+- User registration and login
+- Personalized dashboard
+- Nutrition tracking
+- Fitness and workout logging
+- Progress monitoring
+- Profile management
+
+## Prerequisites
+
+- [Node.js](https://nodejs.org/) (which includes npm)
+- [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) account
+
+## Getting Started
+
+1.  **Clone the repository:**
+    ```sh
+    git clone https://github.com/imanhaikal/g6-webprog.git
+    cd g6-webprog
+    ```
+
+2.  **Install dependencies:**
+    ```sh
+    npm install
+    ```
+
+3.  **Set up your environment:**
+    - Create a `.env` file in the root of the project.
+    - Add your MongoDB Atlas connection string to the `.env` file:
+      ```
+      MONGO_URI="your_mongodb_connection_string"
+      ```
+
+    **Important Security Note:** It looks like you've hardcoded your MongoDB connection string in `server.js`. This is a significant security risk, as it exposes your database credentials. I strongly recommend moving the connection string to a `.env` file and using a library like `dotenv` to load it into your application. I can help with this.
+
+4.  **Update `server.js` to use environment variables:**
+    - Install `dotenv`: `npm install dotenv`
+    - Modify `server.js` to load the connection string from `process.env.MONGO_URI`.
+
+5.  **Run the application:**
+    ```sh
+    npm start
+    ```
+    The server will start on `http://localhost:3000`.
+
 ## Color Scheme
 
 This project uses a carefully selected color palette designed to convey health, vitality, and wellness:
