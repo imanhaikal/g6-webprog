@@ -29,6 +29,8 @@ The project follows a standard web application structure, with a clear separatio
 |-- img/                  # Images and assets
 |-- js/                   # JavaScript files
 |-- node_modules/         # Node.js dependencies
+|-- .env                  # Environment variables (ignored by git)
+|-- .env.example          # Example environment variables
 |-- .gitignore            # Git ignore file
 |-- server.js             # Main server file
 |-- package.json          # Project metadata and dependencies
@@ -56,15 +58,15 @@ The backend is built with **Node.js** and **Express.js**. The main server logic 
 The application connects to a **MongoDB Atlas** database using the `mongodb` driver.
 
 - **Connection Logic**: The connection is managed in `server.js`. The application uses a connection string to connect to the Atlas cluster.
-- **Security**: To keep credentials secure, the connection string should not be hardcoded. Instead, it is stored in a `.env` file at the root of the project. The `dotenv` package is used to load these environment variables.
+- **Security**: To keep credentials secure, the connection string is not hardcoded. Instead, it is stored in a `.env` file at the root of the project, which is ignored by version control. The `dotenv` package is used to load these environment variables.
 
 To set up the database connection:
-1.  Create a `.env` file in the project root.
-2.  Add your MongoDB Atlas connection string to this file:
+1.  Copy the `.env.example` file to a new file named `.env`.
+2.  Add your MongoDB Atlas connection string to the `MONGO_URI` variable in the `.env` file.
     ```
     MONGO_URI="mongodb+srv://<username>:<password>@your-cluster-url"
     ```
-3.  The `server.js` file is configured to read this variable to establish the database connection.
+3.  The `server.js` file is already configured to read this variable to establish the database connection.
 
 ## Frontend Overview
 

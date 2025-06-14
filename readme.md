@@ -35,14 +35,9 @@ This is a web application designed to help users track their health and fitness 
       ```
       MONGO_URI="your_mongodb_connection_string"
       ```
+    *Note: A `.env.example` file is included in the repository to show the required environment variables.*
 
-    **Important Security Note:** It looks like you've hardcoded your MongoDB connection string in `server.js`. This is a significant security risk, as it exposes your database credentials. I strongly recommend moving the connection string to a `.env` file and using a library like `dotenv` to load it into your application. I can help with this.
-
-4.  **Update `server.js` to use environment variables:**
-    - Install `dotenv`: `npm install dotenv`
-    - Modify `server.js` to load the connection string from `process.env.MONGO_URI`.
-
-5.  **Run the application:**
+4.  **Run the application:**
     ```sh
     npm start
     ```

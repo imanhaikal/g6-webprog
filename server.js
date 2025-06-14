@@ -1,11 +1,12 @@
 const express = require('express');
 const { MongoClient, ServerApiVersion } = require('mongodb');
+require('dotenv').config();
 
 const app = express();
 const port = 3000;
 
-// Replace the placeholder with your Atlas connection string
-const uri = "mongodb+srv://imanhaikal04:Iman.12345@cluster0.uvzdzfb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+// Use the environment variable for the connection string
+const uri = process.env.MONGO_URI;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
