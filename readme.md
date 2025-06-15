@@ -2,19 +2,33 @@
 
 This is a web application designed to help users track their health and fitness goals. It includes features for monitoring nutrition, workouts, progress, and more.
 
-## Features
+## Key Features
 
-- User registration and login
-- Personalized dashboard
-- Nutrition tracking
-- Fitness and workout logging
-- Progress monitoring
-- Profile management
+- **User Authentication**: Secure user registration and login system.
+- **Personalized Dashboard**: At-a-glance overview of recent activities, goals, and stats.
+- **Workout & Activity Logging**:
+    - Log different types of activities (cardio, strength, etc.).
+    - Create and manage workout routines with specific exercises.
+    - Full CRUD (Create, Read, Update, Delete) functionality for all entries.
+- **Steps Tracking & Route Finder**:
+    - Manually log steps, distance, and duration.
+    - **Automatic Step Calculation**: Estimates steps based on user's height, distance, and duration.
+    - **Nearby Route Finder**: Integrates with Mapbox to find walking, running, or cycling routes near the user's location.
+    - Interactive map to view and select different route options.
+- **Profile Management**:
+    - View and update user profile information (name, age, height, weight).
+    - Securely change passwords.
+- **Progress Visualization**:
+    - Interactive charts and graphs to monitor progress over time.
+- **Responsive Design**:
+    - Collapsible sidebar for a seamless experience on mobile devices.
+    - Fully responsive layout that adapts to all screen sizes.
 
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) (which includes npm)
-- [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) account
+- [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) account for the database.
+- [Mapbox Account](https://www.mapbox.com/) for the route finder functionality.
 
 ## Getting Started
 
@@ -31,9 +45,10 @@ This is a web application designed to help users track their health and fitness 
 
 3.  **Set up your environment:**
     - Create a `.env` file in the root of the project.
-    - Add your MongoDB Atlas connection string to the `.env` file:
+    - Add your MongoDB Atlas connection string and Mapbox access token:
       ```
       MONGO_URI="your_mongodb_connection_string"
+      MAPBOX_ACCESS_TOKEN="your_mapbox_public_access_token"
       ```
     *Note: A `.env.example` file is included in the repository to show the required environment variables.*
 
