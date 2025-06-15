@@ -212,7 +212,10 @@
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label for="stepsCount" class="form-label">Number of Steps</label>
-                                            <input type="number" class="form-control" id="stepsCount" name="steps" required>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control" id="stepsCount" name="steps" required>
+                                                <button class="btn btn-outline-secondary" type="button" id="calculateStepsBtn" title="Calculate steps based on distance and height">Calculate</button>
+                                            </div>
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label for="stepsDuration" class="form-label">Duration (minutes)</label>

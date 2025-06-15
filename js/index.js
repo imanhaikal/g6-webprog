@@ -482,6 +482,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             displayRecentSteps();
             initializeRouteFinder();
+            
+            const calculateStepsBtn = document.getElementById('calculateStepsBtn');
+            if (calculateStepsBtn) {
+                calculateStepsBtn.addEventListener('click', calculateSteps);
+            }
         }
 
         // --- Workout Logger Functions ---
@@ -1729,5 +1734,51 @@ document.addEventListener('DOMContentLoaded', () => {
                         alert(`Error: ${error.message}`);
                     }
                 });
+            }
+        }
+
+        async function calculateSteps() {
+            try {
+                // 1. Fetch user's height
+                const profileResponse = await fetch('/api/profile');
+                if (!profileResponse.ok) throw new Error('Could not fetch user profile to get height.');
+                const user = await profileResponse.json();
+                
+                if (!user.height || user.height <= 0) {
+                    alert('Please set your height in your profile to use this feature.');
+                    return;
+                }
+                const heightCm = user.height;
+
+                // 2. Get distance and duration from the form
+                const distance = parseFloat(document.getElementById('stepsDistance').value);
+                const distanceUnit = document.getElementById('distanceUnit').value;
+                const durationMin = parseFloat(document.getElementById('stepsDuration').value);
+
+                if (isNaN(distance) || isNaN(durationMin) || distance <= 0 || durationMin <= 0) {
+                    alert('Please enter a valid distance and duration to calculate steps.');
+                    return;
+                }
+                
+                // 3. Determine if walking or running
+                const distanceKm = distanceUnit === 'miles' ? distance * 1.60934 : distance;
+                const durationHours = durationMin / 60;
+                const speedKmh = distanceKm / durationHours;
+
+                // Use different stride length factors for walking vs running
+                const strideFactor = speedKmh > 8 ? 0.75 : 0.413; // 8 km/h is a brisk walk / slow jog
+                
+                // 4. Calculate steps
+                const strideLengthCm = heightCm * strideFactor;
+                const distanceCm = distanceKm * 100000;
+                const estimatedSteps = Math.round(distanceCm / strideLengthCm);
+                
+                // 5. Populate the field
+                document.getElementById('stepsCount').value = estimatedSteps;
+                alert(`Estimated steps: ${estimatedSteps.toLocaleString()}`);
+
+            } catch (error) {
+                console.error('Error calculating steps:', error);
+                alert(`An error occurred: ${error.message}`);
             }
         }
