@@ -195,7 +195,7 @@
 
     <div class="d-flex">
         <!-- Sidebar -->
-        <div class="sidebar">
+        <div class="sidebar collapse d-md-block" id="sidebar">
             <div>
                 <div class="sidebar-logo d-flex align-items-center mb-4">
                     <svg width="32" height="32" viewBox="0 0 100 100" class="me-2">
@@ -256,7 +256,12 @@
         <!-- Main Content -->
         <div class="main-content-wrapper">
             <header class="header d-flex justify-content-between align-items-center sticky-top">
-                <span id="pageTitle">Dashboard</span>
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-light d-md-none me-2" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar" aria-expanded="false" aria-controls="sidebar">
+                        <i class="bi bi-list fs-4"></i>
+                    </button>
+                    <span id="pageTitle">Dashboard</span>
+                </div>
                 <div class="d-flex align-items-center">
                     <i class="bi bi-bell me-3 fs-5" title="Notifications"></i>
                     <img src="https://i.pravatar.cc/40?u=healthuser" alt="User Avatar" class="rounded-circle user-avatar me-2">

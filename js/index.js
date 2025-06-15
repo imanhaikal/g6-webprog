@@ -53,7 +53,66 @@ document.addEventListener('DOMContentLoaded', () => {
                     loadPage(page, section);
                 }
             });
+
+            // Initialize sidebar collapse for mobile
+            initializeSidebarCollapse();
+            
+            // Check if user is logged in
+            checkLoginStatus();
         });
+
+        function initializeSidebarCollapse() {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarLinks = sidebar.querySelectorAll('.nav-link');
+            let backdrop;
+            
+            // Create backdrop element
+            function createBackdrop() {
+                backdrop = document.createElement('div');
+                backdrop.className = 'sidebar-backdrop';
+                backdrop.style.position = 'fixed';
+                backdrop.style.top = '0';
+                backdrop.style.left = '0';
+                backdrop.style.width = '100%';
+                backdrop.style.height = '100%';
+                backdrop.style.backgroundColor = 'rgba(0,0,0,0.5)';
+                backdrop.style.zIndex = '1040';
+                backdrop.style.display = 'none';
+                document.body.appendChild(backdrop);
+                
+                backdrop.addEventListener('click', () => {
+                    if (sidebar.classList.contains('show')) {
+                        const bsCollapse = new bootstrap.Collapse(sidebar);
+                        bsCollapse.hide();
+                    }
+                });
+            }
+            
+            // Show/hide backdrop when sidebar is toggled
+            createBackdrop();
+            
+            sidebar.addEventListener('show.bs.collapse', () => {
+                if (window.innerWidth < 768) {
+                    backdrop.style.display = 'block';
+                    document.body.style.overflow = 'hidden'; // Prevent scrolling
+                }
+            });
+            
+            sidebar.addEventListener('hide.bs.collapse', () => {
+                backdrop.style.display = 'none';
+                document.body.style.overflow = ''; // Restore scrolling
+            });
+            
+            // Close sidebar when clicking on a link (mobile only)
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth < 768 && sidebar.classList.contains('show')) {
+                        const bsCollapse = new bootstrap.Collapse(sidebar);
+                        bsCollapse.hide();
+                    }
+                });
+            });
+        }
 
         function loadPage(page, section = null) {
             // Update page title
