@@ -709,7 +709,7 @@ app.delete('/api/steps/:id', authMiddleware, async (req, res) => {
 // --- Config ---
 // Endpoint to provide the Mapbox token to the client
 app.get('/api/mapbox-token', authMiddleware, (req, res) => {
-    res.json({ token: process.env.MAPBOX_ACCESS_TOKEN });
+    res.json({ token: "pk.eyJ1IjoiaW1hbmhhaWthbDA0IiwiYSI6ImNtYndzcDR4dDE0bW8ycnB0a3B0bzYwODAifQ.sYAJFD1CEceNAKrlerr-lg" });
 });
 
 // --- Profile Management ---
