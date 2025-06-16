@@ -1741,58 +1741,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- Profile Management ---
         async function initializeProfilePage() {
-            const profileForm = document.getElementById('updateProfileForm');
-            
+            const email = localStorage.getItem('userEmail');
+            if (!email) return alert('User not logged in');
+
             try {
-                const response = await fetch('/api/profile');
-                if (!response.ok) throw new Error('Could not fetch profile data.');
-                
-                const user = await response.json();
-                
-                // Populate the form
+                const res = await fetch(`http://localhost:3000/api/user/${email}`);
+                const user = await res.json();
+
+                console.log("Fetched user:", user); // 👈 Add this line
+
+                // Populate input fields
                 document.getElementById('profileName').value = user.name || '';
                 document.getElementById('profileEmail').value = user.email || '';
                 document.getElementById('profileAge').value = user.age || '';
                 document.getElementById('profileWeight').value = user.weight || '';
                 document.getElementById('profileHeight').value = user.height || '';
-                document.getElementById('profileGoals').value = user.goals || '';
 
-            } catch (error) {
-                console.error('Error loading profile:', error);
-                alert('Could not load profile data. Please try refreshing.');
-            }
-            
-            if (profileForm) {
-                profileForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    
-                    const updatedData = {
-                        name: document.getElementById('profileName').value,
-                        age: document.getElementById('profileAge').value,
-                        weight: document.getElementById('profileWeight').value,
-                        height: document.getElementById('profileHeight').value,
-                        goals: document.getElementById('profileGoals').value,
-                    };
-
-                    try {
-                        const updateResponse = await fetch('/api/profile', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(updatedData)
-                        });
-
-                        if (!updateResponse.ok) {
-                            const errorText = await updateResponse.text();
-                            throw new Error(errorText || 'Failed to update profile.');
-                        }
-
-                        alert('Profile updated successfully!');
-
-                    } catch (error) {
-                        console.error('Error updating profile:', error);
-                        alert(`Error: ${error.message}`);
-                    }
-                });
+            } catch (err) {
+                console.error('Error loading profile:', err);
+                alert('Failed to load profile.');
             }
         }
 

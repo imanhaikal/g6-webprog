@@ -81,3 +81,52 @@
     });
   }
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  const email = localStorage.getItem('userEmail'); //stored during login
+  if (!email) return alert("User not logged in");
+
+  fetch(`http://localhost:3000/api/user/${email}`)
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById('profileName').value = data.name || '';
+      document.getElementById('profileEmail').value = data.email || '';
+      document.getElementById('profileAge').value = data.age || '';
+      document.getElementById('profileWeight').value = data.weight || '';
+      document.getElementById('profileHeight').value = data.height || '';
+      // You can add fitnessGoals if it exists in schema
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Failed to load profile");
+    });
+
+  // Submit profile update
+  document.getElementById('updateProfileForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const updatedData = {
+      name: document.getElementById('profileName').value,
+      age: document.getElementById('profileAge').value,
+      weight: document.getElementById('profileWeight').value,
+      height: document.getElementById('profileHeight').value,
+    };
+
+    try {
+      const res = await fetch(`http://localhost:3000/api/user/${email}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updatedData)
+      });
+
+      const result = await res.json();
+      alert(result.message);
+    } catch (err) {
+      console.error(err);
+      alert("Error updating profile");
+    }
+  });
+});
+

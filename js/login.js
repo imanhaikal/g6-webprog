@@ -18,6 +18,8 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     if (response.ok) {
       document.getElementById('message').innerText = data.message;
       // Optionally: redirect to a dashboard page
+      //Store user's email for later use
+      localStorage.setItem('userEmail', data.user.email);
       window.location.href = '/index.html';
     } else {
       document.getElementById('message').innerText = data.message;

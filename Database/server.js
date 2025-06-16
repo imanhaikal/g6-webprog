@@ -61,6 +61,38 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// Get user profile
+app.get('/api/user/:email', async (req, res) => {
+  try {
+    const user = await User.findOne({ email: req.params.email });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
+    console.log('Fetched user:', user); //line added
+
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err });
+  }
+});
+
+app.put('/api/user/:email', async (req, res) => {
+  try {
+    const updatedUser = await User.findOneAndUpdate(
+      { email: req.params.email },
+      req.body,
+      { new: true } // return updated document
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ message: 'Profile updated successfully', user: updatedUser });
+  } catch (err) {
+    res.status(500).json({ message: 'Update failed', error: err });
+  }
+});
+
+
 // Start server
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
