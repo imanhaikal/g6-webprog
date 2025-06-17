@@ -208,6 +208,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (page === 'profile') {
                             initializeProfilePage();
                         }
+
+                        // Initialize notifications page
+                        if (page === 'notifications') {
+                            initializeNotificationsPage();
+                        }
                     } else {
                         throw new Error('Content element not found in the loaded page');
                     }
@@ -264,66 +269,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 const ctx = weeklyChartCanvas.getContext('2d');
                 
                 // Create the chart
+                const today = new Date();
+                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const labels = [];
+                for (let i = 6; i >= 0; i--) {
+                    const d = new Date(today);
+                    d.setDate(today.getDate() - i);
+                    labels.push(days[d.getDay()]);
+                }
+            
                 const weeklyActivityChart = new Chart(ctx, {
                     type: 'bar',
                     data: {
-                        labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-                        datasets: [{
-                            label: 'Steps',
-                            data: chartData.steps.data,
-                            backgroundColor: chartData.steps.backgroundColor,
-                            borderColor: chartData.steps.borderColor,
-                            borderWidth: 1
-                        }]
+                        labels: labels,
+                        datasets: [chartData.steps, chartData.calories, chartData.workouts]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
                         scales: {
                             y: {
-                                beginAtZero: true,
-                                grid: {
-                                    display: true,
-                                    color: 'rgba(0, 0, 0, 0.1)'
-                                },
-                                ticks: {
-                                    color: '#666',
-                                    font: {
-                                        size: 12
-                                    },
-                                    callback: function(value) {
-                                        return value.toLocaleString();
-                                    }
-                                }
-                            },
-                            x: {
-                                grid: {
-                                    display: false
-                                },
-                                ticks: {
-                                    color: '#666',
-                                    font: {
-                                        size: 12
-                                    }
-                                }
+                                beginAtZero: true
                             }
                         },
                         plugins: {
                             legend: {
-                                display: false
+                                position: 'top',
                             },
                             tooltip: {
-                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                                callbacks: {
-                                    label: function(context) {
-                                        let label = context.dataset.label || '';
-                                        if (label) {
-                                            label += ': ';
-                                        }
-                                        label += context.parsed.y.toLocaleString();
-                                        return label;
-                                    }
-                                }
+                                mode: 'index',
+                                intersect: false
                             }
                         }
                     }
@@ -331,66 +306,88 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 console.log('Weekly activity chart initialized');
                 
-                // Add event listeners to the metric buttons
-                document.querySelectorAll('.btn-group[role="group"] .btn').forEach(button => {
-                    button.addEventListener('click', function() {
-                        const metric = this.getAttribute('data-metric');
-                        console.log('Metric button clicked:', metric);
-                        
-                        // Remove active class from all buttons
-                        document.querySelectorAll('.btn-group[role="group"] .btn').forEach(btn => {
-                            btn.classList.remove('active');
-                        });
-                        
-                        // Add active class to clicked button
-                        this.classList.add('active');
-                        
-                        // Update chart based on selected metric
-                        updateWeeklyChart(weeklyActivityChart, metric, chartData);
-                    });
+                // Handle filter changes
+                document.getElementById('chartMetricFilter').addEventListener('change', (event) => {
+                    updateWeeklyChart(weeklyActivityChart, event.target.value, chartData);
                 });
             } catch (error) {
                 console.error('Error creating weekly activity chart:', error);
             }
         }
 
-        // Function to update the weekly chart based on selected metric
-        function updateWeeklyChart(chart, metric, chartData) {
-            console.log('Updating chart to metric:', metric);
-            
-            if (!chart) {
-                console.error('Chart instance not available');
-                return;
+        // This function needs to be defined within the DOMContentLoaded scope
+        const VAPID_PUBLIC_KEY = 'BB1ps-PnF3YWgbDclyhlX7T-IszmPZGMTYfydgEF6iOuuY3Ke7hf2YNqbzikNOR_Yg9DUzEGtRhcoX49tSCrqeE';
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding)
+                .replace(/-/g, '+')
+                .replace(/_/g, '/');
+
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
             }
-            
-            try {
-                // Update dataset with new data
-                chart.data.datasets[0].label = chartData[metric].label;
-                chart.data.datasets[0].data = chartData[metric].data;
-                chart.data.datasets[0].backgroundColor = chartData[metric].backgroundColor;
-                chart.data.datasets[0].borderColor = chartData[metric].borderColor;
-                
-                // Update y-axis formatting based on metric
-                if (metric === 'steps') {
-                    chart.options.scales.y.ticks.callback = function(value) {
-                        return value.toLocaleString();
-                    };
-                } else if (metric === 'calories') {
-                    chart.options.scales.y.ticks.callback = function(value) {
-                        return value.toLocaleString() + ' kcal';
-                    };
-                } else if (metric === 'workouts') {
-                    chart.options.scales.y.ticks.callback = function(value) {
-                        return value + ' min';
-                    };
-                }
-                
-                // Update the chart
-                chart.update();
-                console.log('Chart updated successfully');
+            return outputArray;
+        }
+
+        async function subscribeUser() {
+            if ('serviceWorker' in navigator && 'PushManager' in window) {
+                try {
+                    if (Notification.permission === 'denied') {
+                        alert('You have blocked notifications. To receive them, please enable notifications for this site in your browser settings.');
+                        const webPushSwitch = document.getElementById('webPushSwitch');
+                        if (webPushSwitch) {
+                            webPushSwitch.checked = false;
+                        }
+                        return;
+                    }
+
+                    const registration = await navigator.serviceWorker.register('/sw.js');
+                    const subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                    });
+
+                    await fetch('/subscribe', {
+                        method: 'POST',
+                        body: JSON.stringify(subscription),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    alert('Successfully subscribed to notifications!');
+
             } catch (error) {
-                console.error('Error updating chart:', error);
+                    console.error('Failed to subscribe the user: ', error);
+                    const webPushSwitch = document.getElementById('webPushSwitch');
+                    if (webPushSwitch) {
+                        webPushSwitch.checked = false;
+                    }
+                }
+            } else {
+                alert('Push notifications are not supported in this browser.');
             }
+        }
+
+        function updateWeeklyChart(chart, metric, chartData) {
+            // Hide all datasets first
+            chart.data.datasets.forEach(dataset => {
+                dataset.hidden = true;
+            });
+            
+            // Show the selected dataset
+            chart.data.datasets.forEach(dataset => {
+                if (dataset.label === metric) {
+                    dataset.hidden = false;
+                }
+            });
+            
+            // Update the chart
+            chart.update();
         }
 
         // Function to initialize charts
@@ -1741,7 +1738,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- Profile Management ---
         async function initializeProfilePage() {
-            const profileForm = document.getElementById('updateProfileForm');
+            const profileForm = document.getElementById('profileForm');
+            const changePasswordForm = document.getElementById('changePasswordForm');
             
             try {
                 const response = await fetch('/api/profile');
@@ -1840,4 +1838,119 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Error calculating steps:', error);
                 alert(`An error occurred: ${error.message}`);
             }
+        }
+
+        async function initializeNotificationsPage() {
+            // Re-attach event listeners from notifications.js
+            const webPushSwitch = document.getElementById('webPushSwitch');
+            if (webPushSwitch) {
+                const newSwitch = webPushSwitch.cloneNode(true);
+                webPushSwitch.parentNode.replaceChild(newSwitch, webPushSwitch);
+                
+                newSwitch.addEventListener('change', () => {
+                    if (newSwitch.checked) {
+                        subscribeUser();
+                    }
+                });
+            }
+
+            // In-app reminder logic, now part of the initialization
+            const reminderForm = document.getElementById('dailyReminderForm');
+            const customReminderForm = document.getElementById('customReminderForm');
+            const remindersList = document.getElementById('remindersList');
+
+            let reminders = JSON.parse(localStorage.getItem('reminders')) || [];
+
+            function saveReminders() {
+                localStorage.setItem('reminders', JSON.stringify(reminders));
+            }
+
+            function renderReminders() {
+                if (!remindersList) return;
+                remindersList.innerHTML = '';
+                reminders.forEach((reminder, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    li.textContent = `${reminder.text} at ${new Date(reminder.time).toLocaleString()}`;
+                    const deleteButton = document.createElement('button');
+                    deleteButton.className = 'btn btn-danger btn-sm';
+                    deleteButton.textContent = 'Delete';
+                    deleteButton.onclick = () => {
+                        reminders.splice(index, 1);
+                        saveReminders();
+                        renderReminders();
+                        scheduleReminders();
+                    };
+                    li.appendChild(deleteButton);
+                    remindersList.appendChild(li);
+                });
+            }
+
+            function scheduleReminders() {
+                 for (let i = 1; i < 99999; i++) {
+                    window.clearTimeout(i);
+                }
+
+                reminders.forEach(reminder => {
+                    const now = new Date();
+                    const reminderTime = new Date(reminder.time);
+
+                    if (reminderTime > now) {
+                        const timeout = reminderTime.getTime() - now.getTime();
+                        setTimeout(() => {
+                            alert(`Reminder: ${reminder.text}`);
+                            reminders = reminders.filter(r => r.time !== reminder.time);
+                            saveReminders();
+                            renderReminders();
+                        }, timeout);
+                    }
+                });
+            }
+
+            if (reminderForm) {
+                // To avoid attaching multiple listeners, replace the form element
+                const newReminderForm = reminderForm.cloneNode(true);
+                reminderForm.parentNode.replaceChild(newReminderForm, reminderForm);
+
+                newReminderForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const text = document.getElementById('reminderText').value;
+                    const time = document.getElementById('reminderTime').value;
+                    if (text && time) {
+                        const [hours, minutes] = time.split(':');
+                        const reminderDate = new Date();
+                        reminderDate.setHours(hours, minutes, 0, 0);
+                        if (reminderDate < new Date()) {
+                            reminderDate.setDate(reminderDate.getDate() + 1);
+                        }
+                        reminders.push({ text, time: reminderDate.toISOString() });
+                        saveReminders();
+                        renderReminders();
+                        scheduleReminders();
+                        newReminderForm.reset();
+                    }
+                });
+            }
+
+            if (customReminderForm) {
+                // To avoid attaching multiple listeners, replace the form element
+                const newCustomReminderForm = customReminderForm.cloneNode(true);
+                customReminderForm.parentNode.replaceChild(newCustomReminderForm, customReminderForm);
+                
+                newCustomReminderForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const text = document.getElementById('customReminderText').value;
+                    const time = document.getElementById('customReminderTime').value;
+                    if (text && time) {
+                        reminders.push({ text, time });
+                        saveReminders();
+                        renderReminders();
+                        scheduleReminders();
+                        newCustomReminderForm.reset();
+                    }
+                });
+            }
+
+            renderReminders();
+            scheduleReminders();
         }

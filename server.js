@@ -5,6 +5,8 @@ const path = require('path');
 const bcrypt = require('bcrypt');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
+const webPush = require('web-push');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const port = 3000;
@@ -32,6 +34,50 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
+
+// VAPID keys should be stored in environment variables
+if (!'BB1ps-PnF3YWgbDclyhlX7T-IszmPZGMTYfydgEF6iOuuY3Ke7hf2YNqbzikNOR_Yg9DUzEGtRhcoX49tSCrqeE' || !'f35MWxp6k-vvW5jkGMv5Sb85qUySerb0NYQtnxd-BxI') {
+    console.log("You must set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in your .env file. You can use the `npm run vapi` command to generate them.");
+    process.exit(1);
+}
+
+const vapidKeys = {
+    publicKey: 'BB1ps-PnF3YWgbDclyhlX7T-IszmPZGMTYfydgEF6iOuuY3Ke7hf2YNqbzikNOR_Yg9DUzEGtRhcoX49tSCrqeE',
+    privateKey: 'f35MWxp6k-vvW5jkGMv5Sb85qUySerb0NYQtnxd-BxI'
+};
+
+webPush.setVapidDetails(
+    'mailto:your-email@example.com', // Replace with your email
+    vapidKeys.publicKey,
+    vapidKeys.privateKey
+);
+
+// Nodemailer transporter setup
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'healthtrackerg6@gmail.com',
+        pass: 'ramrepsbdovdkypm'
+    }
+});
+
+async function sendWelcomeEmail(email, name) {
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Welcome to Health and Fitness Tracker!',
+        html: `<h1>Welcome, ${name}!</h1>
+               <p>Thank you for registering. We are excited to have you on board.</p>
+               <p>Start tracking your fitness journey now!</p>`
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log('Welcome email sent to', email);
+    } catch (error) {
+        console.error('Error sending welcome email:', error);
+    }
+}
 
 const presetTemplates = [
     {
@@ -80,6 +126,57 @@ const authMiddleware = (req, res, next) => {
         res.redirect('/login.html');
     }
 };
+
+// --- Web Push Notification Routes ---
+
+// Subscribe route
+app.post('/subscribe', authMiddleware, async (req, res) => {
+    const subscription = req.body;
+    const userId = req.session.user.id;
+
+    const db = client.db('webprog');
+    const subscriptionsCollection = db.collection('subscriptions');
+
+    try {
+        // Optional: remove old subscription for the same user
+        await subscriptionsCollection.deleteMany({ userId: new ObjectId(userId) });
+        
+        await subscriptionsCollection.insertOne({
+            userId: new ObjectId(userId),
+            subscription: subscription
+        });
+        
+        res.status(201).json({ message: 'Subscription saved.' });
+    } catch (error) {
+        console.error('Error saving subscription:', error);
+        res.status(500).send('Failed to save subscription.');
+    }
+});
+
+// Send notification route (for testing)
+app.post('/send-notification', authMiddleware, async (req, res) => {
+    const { title, message } = req.body;
+    const userId = req.session.user.id;
+    
+    const db = client.db('webprog');
+    const subscriptionsCollection = db.collection('subscriptions');
+
+    try {
+        const userSubscriptions = await subscriptionsCollection.find({ userId: new ObjectId(userId) }).toArray();
+
+        const notificationPayload = JSON.stringify({ title, body: message });
+
+        const promises = userSubscriptions.map(sub => webPush.sendNotification(sub.subscription, notificationPayload));
+        
+        await Promise.all(promises);
+
+        res.status(200).json({ message: 'Notification sent.' });
+
+    } catch (error) {
+        console.error('Error sending notification:', error);
+        res.status(500).send('Failed to send notification.');
+    }
+});
 
 // --- Application Routes ---
 
@@ -144,6 +241,9 @@ app.post('/register', async (req, res) => {
         }));
         
         await templatesCollection.insertMany(userPresetTemplates);
+
+        // Send welcome email
+        await sendWelcomeEmail(email, name);
 
         res.redirect('/login.html');
     } catch (error) {
@@ -764,5 +864,5 @@ app.put('/api/profile', authMiddleware, async (req, res) => {
 app.use(express.static(path.join(__dirname)));
 
 app.listen(port, () => {
-  console.log(`Server listening at http://localhost:${port}`)
+    console.log(`Server listening at http://localhost:${port}`)
 }); 
