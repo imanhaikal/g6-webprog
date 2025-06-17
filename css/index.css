@@ -160,7 +160,6 @@ body {
             width: 150px;
             height: 150px;
             border-radius: 50%;
-            background: conic-gradient(var(--primary-color) 75%, #e9ecef 75%);
             display: flex;
             justify-content: center;
             align-items: center;

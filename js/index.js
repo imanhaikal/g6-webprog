@@ -181,7 +181,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         // Initialize weekly activity chart if we're on the dashboard page
                         if (page === 'dashboard') {
+                            const script = document.createElement('script');
+                            script.src = 'js/dashboard-charts.js';
+                            script.onload = () => {
                             initializeDashboardCharts();
+                            };
+                            document.body.appendChild(script);
                         }
 
                         // Initialize fitness tracker if on fitness page
@@ -208,6 +213,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (page === 'profile') {
                             initializeProfilePage();
                         }
+
+                        // Initialize notifications page
+                        if (page === 'notifications') {
+                            initializeNotificationsPage();
+                        }
                     } else {
                         throw new Error('Content element not found in the loaded page');
                     }
@@ -228,169 +238,109 @@ document.addEventListener('DOMContentLoaded', () => {
         function initializeDashboardCharts() {
             console.log('Initializing dashboard charts...');
             
-            // Check if the weekly activity chart exists
+            // Fetch today's steps and calories
+            fetchTodaySteps();
+            fetchTodayCalories();
+            fetchUpcomingWorkout();
+
+            // Handle the weekly activity chart
             const weeklyChartCanvas = document.getElementById('weeklyActivityChart');
-            if (!weeklyChartCanvas) {
-                console.error('Weekly activity chart canvas not found');
-                return;
-            }
+            if (weeklyChartCanvas) {
+                try {
+                    // Initialize the chart with empty data
+                    initWeeklyActivityChart();
+                    
+                    // Fetch the data to populate it
+                    fetchWeeklyActivity();
             
-            console.log('Weekly activity chart canvas found, initializing...');
-            
-            // Chart data
-            const chartData = {
-                steps: {
-                    label: 'Steps',
-                    data: [8421, 10254, 7592, 9873, 6420, 8532, 12045],
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                },
-                calories: {
-                    label: 'Calories Burned',
-                    data: [1850, 2102, 1745, 2231, 1654, 1932, 2345],
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                },
-                workouts: {
-                    label: 'Workout Minutes',
-                    data: [45, 60, 30, 75, 0, 45, 90],
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                }
-            };
-            
-            // Initialize the chart
-            try {
-                const ctx = weeklyChartCanvas.getContext('2d');
-                
-                // Create the chart
-                const weeklyActivityChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-                        datasets: [{
-                            label: 'Steps',
-                            data: chartData.steps.data,
-                            backgroundColor: chartData.steps.backgroundColor,
-                            borderColor: chartData.steps.borderColor,
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                grid: {
-                                    display: true,
-                                    color: 'rgba(0, 0, 0, 0.1)'
-                                },
-                                ticks: {
-                                    color: '#666',
-                                    font: {
-                                        size: 12
-                                    },
-                                    callback: function(value) {
-                                        return value.toLocaleString();
-                                    }
-                                }
-                            },
-                            x: {
-                                grid: {
-                                    display: false
-                                },
-                                ticks: {
-                                    color: '#666',
-                                    font: {
-                                        size: 12
-                                    }
-                                }
-                            }
-                        },
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
-                            tooltip: {
-                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                                callbacks: {
-                                    label: function(context) {
-                                        let label = context.dataset.label || '';
-                                        if (label) {
-                                            label += ': ';
-                                        }
-                                        label += context.parsed.y.toLocaleString();
-                                        return label;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-                
-                console.log('Weekly activity chart initialized');
-                
-                // Add event listeners to the metric buttons
-                document.querySelectorAll('.btn-group[role="group"] .btn').forEach(button => {
-                    button.addEventListener('click', function() {
-                        const metric = this.getAttribute('data-metric');
-                        console.log('Metric button clicked:', metric);
-                        
-                        // Remove active class from all buttons
-                        document.querySelectorAll('.btn-group[role="group"] .btn').forEach(btn => {
-                            btn.classList.remove('active');
+                    // Add event listeners for the metric buttons to update the chart
+                    document.querySelectorAll('.btn-group[role="group"] .btn').forEach(button => {
+                        button.addEventListener('click', function() {
+                            // Update all buttons to be inactive/outline style
+                            document.querySelectorAll('.btn-group[role="group"] .btn').forEach(btn => {
+                                btn.classList.remove('active', 'btn-primary');
+                                btn.classList.add('btn-outline-primary');
+                            });
+                            
+                            // Make the clicked button active/solid style
+                            this.classList.add('active', 'btn-primary');
+                            this.classList.remove('btn-outline-primary');
+
+                            updateChart(this.getAttribute('data-metric'));
                         });
-                        
-                        // Add active class to clicked button
-                        this.classList.add('active');
-                        
-                        // Update chart based on selected metric
-                        updateWeeklyChart(weeklyActivityChart, metric, chartData);
                     });
-                });
-            } catch (error) {
-                console.error('Error creating weekly activity chart:', error);
+                } catch (error) {
+                    console.error('Error setting up weekly activity chart:', error);
+                }
             }
         }
 
-        // Function to update the weekly chart based on selected metric
-        function updateWeeklyChart(chart, metric, chartData) {
-            console.log('Updating chart to metric:', metric);
-            
-            if (!chart) {
-                console.error('Chart instance not available');
-                return;
-            }
-            
+        async function fetchTodayCalories() {
             try {
-                // Update dataset with new data
-                chart.data.datasets[0].label = chartData[metric].label;
-                chart.data.datasets[0].data = chartData[metric].data;
-                chart.data.datasets[0].backgroundColor = chartData[metric].backgroundColor;
-                chart.data.datasets[0].borderColor = chartData[metric].borderColor;
-                
-                // Update y-axis formatting based on metric
-                if (metric === 'steps') {
-                    chart.options.scales.y.ticks.callback = function(value) {
-                        return value.toLocaleString();
-                    };
-                } else if (metric === 'calories') {
-                    chart.options.scales.y.ticks.callback = function(value) {
-                        return value.toLocaleString() + ' kcal';
-                    };
-                } else if (metric === 'workouts') {
-                    chart.options.scales.y.ticks.callback = function(value) {
-                        return value + ' min';
-                    };
+                const response = await fetch('/today-calories');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch today\'s calories');
                 }
+                const data = await response.json();
+                const totalCalories = data.totalCalories;
+                const goal = 2200; // Assuming a static goal for now
+                const percentage = Math.min((totalCalories / goal) * 100, 100);
+
+                const caloriesCountElement = document.getElementById('today-calories-count');
+                if (caloriesCountElement) {
+                    caloriesCountElement.firstChild.textContent = totalCalories.toLocaleString() + ' ';
+                }
+
+                const progressBarElement = document.getElementById('calories-progress-bar');
+                if (progressBarElement) {
+                    progressBarElement.style.width = `${percentage}%`;
+                    progressBarElement.setAttribute('aria-valuenow', percentage);
+                }
+            } catch (error) {
+                console.error("Error fetching today's calories:", error);
+            }
+        }
+
+        async function fetchTodaySteps() {
+            try {
+                const response = await fetch('/today-steps');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch today\'s steps');
+                }
+                const data = await response.json();
+                const totalSteps = data.totalSteps;
+                const goal = 10000;
+                const percentage = Math.min((totalSteps / goal) * 100, 100);
+
+                const stepsCountElement = document.getElementById('today-steps-count');
+                if (stepsCountElement) {
+                    stepsCountElement.textContent = totalSteps.toLocaleString();
+                }
+
+                const circleElement = document.getElementById('steps-circle');
+                if (circleElement) {
+                    circleElement.style.background = `conic-gradient(var(--primary-color) ${percentage}%, #e9ecef ${percentage}%)`;
+                }
+            } catch (error) {
+                console.error('Error fetching today\'s steps:', error);
+            }
+        }
+
+        function updateWeeklyChart(chart, metric, chartData) {
+            // Hide all datasets first
+            chart.data.datasets.forEach(dataset => {
+                dataset.hidden = true;
+            });
+            
+            // Show the selected dataset
+            chart.data.datasets.forEach(dataset => {
+                if (dataset.label === metric) {
+                    dataset.hidden = false;
+                }
+            });
                 
                 // Update the chart
                 chart.update();
-                console.log('Chart updated successfully');
-            } catch (error) {
-                console.error('Error updating chart:', error);
-            }
         }
 
         // Function to initialize charts
@@ -1741,7 +1691,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- Profile Management ---
         async function initializeProfilePage() {
-            const profileForm = document.getElementById('updateProfileForm');
+            const profileForm = document.getElementById('profileForm');
+            const changePasswordForm = document.getElementById('changePasswordForm');
             
             try {
                 const response = await fetch('/api/profile');
@@ -1839,5 +1790,381 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 console.error('Error calculating steps:', error);
                 alert(`An error occurred: ${error.message}`);
+            }
+        }
+
+        async function fetchWeeklyActivity() {
+            try {
+                const response = await fetch('/weekly-activity');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch weekly activity data');
+                }
+                const data = await response.json();
+                
+                // Update the chart data
+                const weeklyChart = window.weeklyActivityChart;
+                if (weeklyChart) {
+                    weeklyChart.data.labels = data.labels;
+                    // Store all data sets and update the visible one
+                    window.chartData.steps.data = data.steps;
+                    window.chartData.calories.data = data.calories;
+                    window.chartData.workouts.data = data.workouts;
+
+                    // Get the currently active metric
+                    const activeMetric = document.querySelector('.btn-group[role="group"] .btn.active')?.dataset.metric || 'steps';
+                    updateChart(activeMetric); // This function is in dashboard-charts.js
+                }
+
+            } catch (error) {
+                console.error("Error fetching weekly activity:", error);
+            }
+        }
+
+        async function initializeNotificationsPage() {
+            console.log('Initializing Notifications Page...');
+
+            // --- Element selectors ---
+            const webPushSwitch = document.getElementById('webPushSwitch');
+            const inAppReminderSwitch = document.getElementById('inAppReminderSwitch');
+            const emailNotificationSwitch = document.getElementById('emailNotificationSwitch');
+            const reminderForm = document.getElementById('dailyReminderForm');
+            const customReminderForm = document.getElementById('customReminderForm');
+            const remindersList = document.getElementById('remindersList');
+            const editReminderForm = document.getElementById('editReminderForm');
+
+            // --- State variables ---
+            let reminders = [];
+
+            // --- Functions ---
+            const VAPID_PUBLIC_KEY = 'BB1ps-PnF3YWgbDclyhlX7T-IszmPZGMTYfydgEF6iOuuY3Ke7hf2YNqbzikNOR_Yg9DUzEGtRhcoX49tSCrqeE';
+
+            function urlBase64ToUint8Array(base64String) {
+                const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+                const rawData = window.atob(base64);
+                const outputArray = new Uint8Array(rawData.length);
+                for (let i = 0; i < rawData.length; ++i) {
+                    outputArray[i] = rawData.charCodeAt(i);
+                }
+                return outputArray;
+            }
+
+            async function subscribeUser() {
+                if ('serviceWorker' in navigator && 'PushManager' in window) {
+                    try {
+                        if (Notification.permission === 'denied') {
+                            alert('You have blocked notifications. To receive them, please enable notifications for this site in your browser settings.');
+                            webPushSwitch.checked = false;
+                            return;
+                        }
+
+                        const registration = await navigator.serviceWorker.register('/sw.js');
+                        const subscription = await registration.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                        });
+
+                        await fetch('/subscribe', {
+                            method: 'POST', body: JSON.stringify(subscription), headers: { 'Content-Type': 'application/json' }
+                        });
+                        alert('Successfully subscribed to push notifications!');
+                    } catch (error) {
+                        console.error('Failed to subscribe the user: ', error);
+                        webPushSwitch.checked = false;
+                    }
+                }
+            }
+            
+            async function unsubscribeUser() {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    const subscription = await registration.pushManager.getSubscription();
+                    if (subscription) {
+                        await subscription.unsubscribe();
+                    }
+                    await fetch('/unsubscribe', { method: 'POST' });
+                    alert('Unsubscribed from push notifications.');
+                } catch (error) {
+                    console.error('Error unsubscribing:', error);
+                    webPushSwitch.checked = true; // Revert switch on failure
+                }
+            }
+
+            function saveReminders() {
+                const customReminders = reminders.filter(r => r.type !== 'daily');
+                localStorage.setItem('reminders', JSON.stringify(customReminders));
+            }
+
+            function renderReminders() {
+                if (!remindersList) return;
+                remindersList.innerHTML = '';
+                reminders.sort((a, b) => {
+                    const timeA = a.schedule.type === 'daily' ? a.schedule.value : new Date(a.schedule.value);
+                    const timeB = b.schedule.type === 'daily' ? b.schedule.value : new Date(b.schedule.value);
+                    
+                    // Basic sort for now, can be improved
+                    if (timeA < timeB) return -1;
+                    if (timeA > timeB) return 1;
+                    return 0;
+                });
+
+                reminders.forEach((reminder) => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    listItem.dataset.id = reminder._id;
+                    const isEnabled = typeof reminder.isEnabled === 'boolean' ? reminder.isEnabled : true;
+                    
+                    let displayTime = '';
+                    if (reminder.schedule.type === 'daily') {
+                        displayTime = `${reminder.schedule.value} (Daily)`;
+                    } else {
+                        displayTime = new Date(reminder.schedule.value).toLocaleString();
+                    }
+
+                    listItem.innerHTML = `
+                        <div class="reminder-info">
+                            <strong>${reminder.title}</strong> - ${displayTime}
+                            <div class="text-muted small">${reminder.message || ''}</div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="form-check form-switch me-3">
+                                <input class="form-check-input reminder-toggle-switch" type="checkbox" role="switch" ${isEnabled ? 'checked' : ''}>
+                            </div>
+                            <button class="btn btn-info btn-sm me-2 edit-notification-btn">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm delete-notification-btn">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>`;
+                    remindersList.appendChild(listItem);
+                });
+            }
+
+            function scheduleReminders() {
+                for (let i = 1; i < 99999; i++) { window.clearTimeout(i); }
+                reminders.forEach(reminder => {
+                    if (reminder.type === 'custom') {
+                        const now = new Date();
+                        const reminderTime = new Date(reminder.time);
+                        if (reminderTime > now) {
+                            const timeout = reminderTime.getTime() - now.getTime();
+                            setTimeout(() => {
+                                if (localStorage.getItem('inAppRemindersEnabled') === 'true') {
+                                    alert(`Reminder: ${reminder.text}`);
+                                }
+                                reminders = reminders.filter(r => r.time !== reminder.time);
+                                saveReminders();
+                                renderReminders();
+                            }, timeout);
+                        }
+                    }
+                });
+            }
+
+            async function loadInitialState() {
+                try {
+                    const response = await fetch('/api/profile');
+                    const profile = response.ok ? await response.json() : {};
+                    if (profile.settings) {
+                        emailNotificationSwitch.checked = profile.settings.emailNotifications;
+                    }
+                } catch (e) { console.error('Error fetching profile settings:', e); }
+
+                const registration = await navigator.serviceWorker.ready;
+                webPushSwitch.checked = !!(await registration.pushManager.getSubscription());
+                inAppReminderSwitch.checked = localStorage.getItem('inAppRemindersEnabled') !== 'false'; // Default to true
+
+                try {
+                    const response = await fetch('/api/scheduled-notifications');
+                    reminders = response.ok ? await response.json() : [];
+                } catch (e) {
+                    console.error('Error fetching server reminders:', e);
+                    reminders = [];
+                }
+                renderReminders();
+            }
+
+            // --- Event Listeners ---
+            
+            // Listen for messages from the Service Worker
+            navigator.serviceWorker.addEventListener('message', event => {
+                if (event.data && event.data.type === 'show-in-app-alert') {
+                    // Check if in-app reminders are enabled before showing alert
+                    if (localStorage.getItem('inAppRemindersEnabled') !== 'false') {
+                        alert(`Reminder: ${event.data.payload.title}\n\n${event.data.payload.body}`);
+                    }
+                }
+            });
+
+            webPushSwitch.addEventListener('change', () => webPushSwitch.checked ? subscribeUser() : unsubscribeUser());
+            inAppReminderSwitch.addEventListener('change', () => localStorage.setItem('inAppRemindersEnabled', inAppReminderSwitch.checked));
+            emailNotificationSwitch.addEventListener('change', async () => {
+                try {
+                    await fetch('/api/profile/settings', {
+                        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ emailNotifications: emailNotificationSwitch.checked })
+                    });
+                } catch (e) {
+                    console.error('Error updating email settings:', e);
+                    emailNotificationSwitch.checked = !emailNotificationSwitch.checked;
+                }
+            });
+
+            reminderForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const title = reminderForm.querySelector('#reminderText').value || "Daily Reminder";
+                const message = reminderForm.querySelector('#reminderText').value;
+                const time = reminderForm.querySelector('#reminderTime').value;
+                if (!message || !time) return;
+                const payload = {
+                    title,
+                    message,
+                    schedule: { type: 'daily', value: time }
+                };
+                try {
+                    const response = await fetch('/api/schedule-notification', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (response.ok) {
+                        const newNotification = await response.json();
+                        reminders.push(newNotification);
+                        renderReminders();
+                        reminderForm.reset();
+                    } else { alert('Failed to schedule notification.'); }
+                } catch (error) { console.error(error); }
+            });
+
+            customReminderForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const message = customReminderForm.querySelector('#customReminderText').value;
+                const dateTime = customReminderForm.querySelector('#customReminderTime').value;
+                if (!message || !dateTime) return;
+                const payload = {
+                    title: message, // Use message as title for one-time alerts
+                    message,
+                    schedule: { type: 'one-time', value: new Date(dateTime).toISOString() }
+                };
+                try {
+                    const response = await fetch('/api/schedule-notification', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (response.ok) {
+                        const newNotification = await response.json();
+                        reminders.push(newNotification);
+                        renderReminders();
+                        customReminderForm.reset();
+                    } else { alert('Failed to schedule one-time reminder.'); }
+                } catch (error) { console.error(error); }
+            });
+
+            remindersList.addEventListener('click', async (event) => {
+                const deleteNotificationBtn = event.target.closest('.delete-notification-btn');
+                const editNotificationBtn = event.target.closest('.edit-notification-btn');
+
+                if (editNotificationBtn) {
+                    const listItem = editNotificationBtn.closest('li[data-id]');
+                    const notificationId = listItem.dataset.id;
+                    const reminder = reminders.find(r => r._id === notificationId);
+
+                    if (reminder) {
+                        // For simplicity, we use the same modal and just show/hide date/time fields
+                        // A more robust solution might use two modals or dynamic form generation
+                        document.getElementById('editReminderId').value = reminder._id;
+                        document.getElementById('editReminderText').value = reminder.message;
+                        
+                        // For now, we only support editing daily reminders' time in this modal
+                        // A future improvement would be a more adaptive modal
+                        document.getElementById('editReminderTime').value = reminder.schedule.type === 'daily' ? reminder.schedule.value : '';
+
+                        const modal = new bootstrap.Modal(document.getElementById('editReminderModal'));
+                        modal.show();
+                    }
+                } else if (deleteNotificationBtn) {
+                    const listItem = deleteNotificationBtn.closest('li[data-id]');
+                    const notificationId = listItem.dataset.id;
+                    if (confirm('Are you sure you want to delete this scheduled reminder?')) {
+                        try {
+                            await fetch(`/api/cancel-notification/${notificationId}`, { method: 'DELETE' });
+                            reminders = reminders.filter(r => r._id !== notificationId);
+                            renderReminders();
+                        } catch (error) { console.error('Error deleting notification:', error); }
+                    }
+                }
+            });
+
+            if(editReminderForm) {
+                editReminderForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const id = document.getElementById('editReminderId').value;
+                    const message = document.getElementById('editReminderText').value;
+                    const time = document.getElementById('editReminderTime').value;
+                    const reminder = reminders.find(r => r._id === id);
+                    
+                    if (!reminder) return alert('Could not find original reminder to update.');
+
+                    const payload = {
+                        title: message, // Update title to match message
+                        message,
+                        schedule: { ...reminder.schedule } // Copy original schedule
+                    };
+
+                    // Only update time for daily reminders in this modal
+                    if (payload.schedule.type === 'daily') {
+                        payload.schedule.value = time;
+                    }
+
+                    try {
+                        const response = await fetch(`/api/schedule-notification/${id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (response.ok) {
+                            // Update local state
+                            const updatedReminder = await response.json(); // Assuming server returns updated doc
+                            const index = reminders.findIndex(r => r._id === id);
+                            if (index !== -1) {
+                                 reminders[index] = { ...reminders[index], ...payload };
+                            }
+                            renderReminders();
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('editReminderModal'));
+                            modal.hide();
+                        } else {
+                            alert('Failed to update the reminder. Please try again.');
+                        }
+                    } catch (error) {
+                        console.error('Error updating reminder:', error);
+                        alert('An error occurred while updating the reminder.');
+                    }
+                });
+            }
+
+            loadInitialState();
+        }
+
+        async function fetchUpcomingWorkout() {
+            try {
+                const response = await fetch('/upcoming-workout');
+                if (!response.ok) {
+                    throw new Error('Server responded with an error');
+                }
+                const data = await response.json();
+
+                const timeEl = document.getElementById('upcoming-workout-time');
+                const titleEl = document.getElementById('upcoming-workout-title');
+
+                if (data.found) {
+                    timeEl.innerHTML = `<i class="bi bi-calendar-event"></i> ${data.day}, ${data.time}`;
+                    titleEl.textContent = data.title;
+                } else {
+                    timeEl.innerHTML = `<i class="bi bi-calendar-event"></i> No workouts scheduled`;
+                    titleEl.textContent = "Enjoy your rest day!";
+                }
+            } catch (error) {
+                console.error('Error fetching upcoming workout:', error);
             }
         }
