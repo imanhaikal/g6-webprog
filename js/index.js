@@ -210,6 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             initializeProfilePage();
                             initializeAccountDeletion();
                             handlePasswordUpdate();
+                            handleSession();
                         }
                     } else {
                         throw new Error('Content element not found in the loaded page');
@@ -2010,5 +2011,49 @@ async function handlePasswordUpdate() {
 
     } catch (error) {
         console.error('Error initializing password update:', error);
+    }
+}
+
+async function handleSession() {
+    try {
+        // Handle logout of specific session
+        const logoutOtherBtn = document.getElementById('logout-other');
+        if (logoutOtherBtn) {
+            logoutOtherBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const sessionItem = document.getElementById('delete-class');
+                
+                try {
+                    if (sessionItem) {
+                        sessionItem.remove();
+                        alert('Session logged out successfully');
+                    }
+                } catch (error) {
+                    console.error('Failed to log out session:', error);
+                    alert('Failed to log out session. Please try again.');
+                }
+            });
+        }
+
+        // Handle logout of all other sessions
+        const logoutAllBtn = document.getElementById('log-out-all-other');
+        if (logoutAllBtn) {
+            logoutAllBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const sessionItem = document.getElementById('delete-class');
+                
+                try {
+                    if (sessionItem) {
+                        sessionItem.remove();
+                        alert('All other sessions logged out successfully');
+                    }
+                } catch (error) {
+                    console.error('Failed to log out sessions:', error);
+                    alert('Failed to log out sessions. Please try again.');
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error setting up session logout handlers:', error);
     }
 }
