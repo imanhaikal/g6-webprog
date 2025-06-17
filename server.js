@@ -1138,25 +1138,53 @@ app.get('/weekly-activity', authMiddleware, async (req, res) => {
     sevenDaysAgo.setHours(0, 0, 0, 0);
 
     try {
+        // Get user weight for calorie calculation
+        const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+        const userWeightKg = user && user.weight ? user.weight : 70; // Default to 70kg if not set
+
+        // MET value for general strength training/workouts
+        const MET_VALUE = 4.0; 
+
         const stepsData = await db.collection('steps').aggregate([
             { $match: { userId: new ObjectId(userId), date: { $gte: sevenDaysAgo } } },
             { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } }, total: { $sum: "$steps" } } },
             { $sort: { _id: 1 } }
         ]).toArray();
 
-        const caloriesData = await db.collection('activities').aggregate([
-            { $match: { userId: new ObjectId(userId), date: { $gte: sevenDaysAgo }, calories: { $exists: true } } },
+        const activityCaloriesData = await db.collection('activities').aggregate([
+            { $match: { userId: new ObjectId(userId), date: { $gte: sevenDaysAgo }, calories: { $exists: true, $ne: null } } },
             { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } }, total: { $sum: "$calories" } } },
             { $sort: { _id: 1 } }
         ]).toArray();
 
-        const workoutsData = await db.collection('workouts').aggregate([
+        const workoutDurationData = await db.collection('workouts').aggregate([
             { $match: { userId: new ObjectId(userId), date: { $gte: sevenDaysAgo } } },
-            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } }, total: { $sum: "$duration" } } },
+            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } }, totalDuration: { $sum: "$duration" } } },
             { $sort: { _id: 1 } }
         ]).toArray();
 
-        // Helper to format data
+        const workoutCaloriesData = workoutDurationData.map(w => ({
+            _id: w._id,
+            total: Math.round((w.totalDuration * (MET_VALUE * userWeightKg * 3.5)) / 200)
+        }));
+
+        // Combine calories from activities and workouts
+        const combinedCalories = {};
+        activityCaloriesData.forEach(item => {
+            combinedCalories[item._id] = (combinedCalories[item._id] || 0) + item.total;
+        });
+        workoutCaloriesData.forEach(item => {
+            combinedCalories[item._id] = (combinedCalories[item._id] || 0) + item.total;
+        });
+
+        const caloriesData = Object.keys(combinedCalories).map(_id => ({
+            _id,
+            total: combinedCalories[_id]
+        })).sort((a, b) => a._id.localeCompare(b._id));
+        
+        const workoutsData = workoutDurationData.map(w => ({ _id: w._id, total: w.totalDuration }));
+
+        // Helper to format data for the chart
         const formatData = (data, days) => {
             const dataMap = new Map(data.map(d => [d._id, d.total]));
             return days.map(day => dataMap.get(day) || 0);
@@ -1181,8 +1209,9 @@ app.get('/weekly-activity', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Error fetching weekly activity data:', error);
         res.status(500).send('Failed to fetch weekly activity data');
-        }
+    }
 });
+
 // PUT /api/profile/settings - Update user notification settings
 app.put('/api/profile/settings', authMiddleware, async (req, res) => {
     const { emailNotifications } = req.body;
@@ -1219,6 +1248,7 @@ app.put('/api/profile/settings', authMiddleware, async (req, res) => {
         res.status(500).send('Failed to update settings.');
     }
 });
+
 app.put('/api/profile', authMiddleware, async (req, res) => {
     const { name, age, weight, height, goals, goalWeight } = req.body;
     const db = client.db('webprog');
@@ -1561,6 +1591,7 @@ app.get('/upcoming-workout', authMiddleware, async (req, res) => {
         res.status(500).send('Failed to fetch upcoming workout.');
             }
 });
+
 // PUT /api/update-password - Update user password
 app.put('/api/update-password', authMiddleware, async (req, res) => {
     try {
@@ -1913,44 +1944,6 @@ app.delete('/api/meal-plans/:id', authMiddleware, async (req, res) => {
         res.status(500).json({ message: 'An error occurred while deleting the meal plan.' });
     }
 });
-
-// PUT /api/update-password - Update user password
-app.put('/api/update-password', authMiddleware, async (req, res) => {
-    try {
-        const { currentPassword, newPassword } = req.body;
-        const userId = req.session.user.id;
-        const db = client.db('webprog');
-
-        // Basic validation
-        if (!currentPassword || !newPassword) {
-            return res.status(400).json({ error: 'Both passwords are required' });
-        }
-
-        // Get user
-        const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
-        if (!user) return res.status(404).json({ error: 'User not found' });
-
-        // Verify current password
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
-        if (!isMatch) return res.status(401).json({ error: 'Current password is incorrect' });
-
-        // Update password
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-        await db.collection('users').updateOne(
-            { _id: new ObjectId(userId) },
-            { $set: { password: hashedPassword } }
-        );
-
-        res.json({ success: true, message: 'Password updated successfully' });
-    } catch (error) {
-        console.error('Password update error:', error);
-        res.status(500).json({ error: 'Server error during password update' });
-    }
-});
-
-
-
-  
 
 // --- Static Files ---
 // This must come AFTER the routes
