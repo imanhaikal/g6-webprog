@@ -19,20 +19,20 @@
                     <div class="card-body">
                         <p>Manage how you receive notifications and reminders.</p>
                         <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" role="switch" id="webPushSwitch" checked>
-                            <label class="form-check-label" for="webPushSwitch">Receive Web-Push Notifications (once allowed)</label>
+                            <input class="form-check-input" type="checkbox" role="switch" id="webPushSwitch">
+                            <label class="form-check-label" for="webPushSwitch">Push Notifications</label>
                         </div>
                         <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" role="switch" id="inAppReminderSwitch" checked>
-                            <label class="form-check-label" for="inAppReminderSwitch">Receive In-App Reminders</label>
+                            <input class="form-check-input" type="checkbox" role="switch" id="inAppReminderSwitch">
+                            <label class="form-check-label" for="inAppReminderSwitch">In-App Alerts</label>
                         </div>
                         <div class="form-check form-switch mb-3">
                             <input class="form-check-input" type="checkbox" role="switch" id="emailNotificationSwitch">
-                            <label class="form-check-label" for="emailNotificationSwitch">Receive Email Notifications (for web updates or first time login)</label>
+                            <label class="form-check-label" for="emailNotificationSwitch">Email Notifications for Daily Reminders</label>
                         </div>
 
                         <h6>Schedule Daily Reminders:</h6>
-                        <form class="row g-3 align-items-end mb-3">
+                        <form class="row g-3 align-items-end mb-3" id="dailyReminderForm">
                             <div class="col-md-4">
                                 <label for="reminderText" class="form-label">Reminder For:</label>
                                 <input type="text" class="form-control" id="reminderText" placeholder="e.g., Evening Walk">
@@ -47,24 +47,70 @@
                         </form>
 
                         <h6>Schedule Custom Reminders:</h6>
-                        <form class="row g-3 align-items-end mb-3">
+                        <form class="row g-3 align-items-end mb-3" id="customReminderForm">
                             <div class="col-md-4">
-                                <label for="reminderText" class="form-label">Reminder For:</label>
-                                <input type="text" class="form-control" id="reminderText" placeholder="e.g., Evening Walk">
+                                <label for="customReminderText" class="form-label">Reminder For:</label>
+                                <input type="text" class="form-control" id="customReminderText" placeholder="e.g., Evening Walk">
                             </div>
                             <div class="col-md-4">
-                                <label for="reminderTime" class="form-label">Date and Time:</label>
-                                <input type="datetime-local" class="form-control" id="reminderTime">
+                                <label for="customReminderTime" class="form-label">Date and Time:</label>
+                                <input type="datetime-local" class="form-control" id="customReminderTime">
                             </div>
                             <div class="col-md-4">
                                 <button type="submit" class="btn btn-primary w-100">Set Reminder</button>
                             </div>
                         </form>
+
+                        <h6>Your Reminders:</h6>
+                        <ul class="list-group" id="remindersList">
+                            <!-- Reminders will be dynamically inserted here -->
+                        </ul>
+                    </div>
+                </div>
+                
+        <!-- Edit Reminder Modal -->
+        <div class="modal fade" id="editReminderModal" tabindex="-1" aria-labelledby="editReminderModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editReminderModalLabel">Edit Reminder</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="editReminderForm">
+                            <input type="hidden" id="editReminderId">
+                            <div class="mb-3">
+                                <label for="editReminderText" class="form-label">Reminder For:</label>
+                                <input type="text" class="form-control" id="editReminderText" placeholder="e.g., Evening Walk" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editReminderTime" class="form-label">Time:</label>
+                                <input type="time" class="form-control" id="editReminderTime" required>
+                            </div>
+                            <div class="modal-footer">
+                               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                               <button type="submit" class="btn btn-primary">Save changes</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
 
     <script src="js/script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const webPushSwitch = document.getElementById('webPushSwitch');
+            if (webPushSwitch) {
+                webPushSwitch.addEventListener('change', () => {
+                    if (webPushSwitch.checked) {
+                        subscribeUser();
+                    }
+                });
+            }
+        });
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html> 

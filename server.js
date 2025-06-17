@@ -5,6 +5,9 @@ const path = require('path');
 const bcrypt = require('bcrypt');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
+const webPush = require('web-push');
+const nodemailer = require('nodemailer');
+const cron = require('node-cron');
 
 const app = express();
 const port = 3000;
@@ -32,6 +35,69 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
+
+// VAPID keys should be stored in environment variables
+if (!'BB1ps-PnF3YWgbDclyhlX7T-IszmPZGMTYfydgEF6iOuuY3Ke7hf2YNqbzikNOR_Yg9DUzEGtRhcoX49tSCrqeE' || !'f35MWxp6k-vvW5jkGMv5Sb85qUySerb0NYQtnxd-BxI') {
+    console.log("You must set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in your .env file. You can use the `npm run vapi` command to generate them.");
+    process.exit(1);
+}
+
+const vapidKeys = {
+    publicKey: 'BB1ps-PnF3YWgbDclyhlX7T-IszmPZGMTYfydgEF6iOuuY3Ke7hf2YNqbzikNOR_Yg9DUzEGtRhcoX49tSCrqeE',
+    privateKey: 'f35MWxp6k-vvW5jkGMv5Sb85qUySerb0NYQtnxd-BxI'
+};
+
+webPush.setVapidDetails(
+    'mailto:your-email@example.com', // Replace with your email
+    vapidKeys.publicKey,
+    vapidKeys.privateKey
+);
+
+// Nodemailer transporter setup
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'healthtrackerg6@gmail.com',
+        pass: 'ramrepsbdovdkypm'
+    }
+});
+
+async function sendWelcomeEmail(email, name) {
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Welcome to Health and Fitness Tracker!',
+        html: `<h1>Welcome, ${name}!</h1>
+               <p>Thank you for registering. We are excited to have you on board.</p>
+               <p>Start tracking your fitness journey now!</p>`
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log('Welcome email sent to', email);
+    } catch (error) {
+        console.error('Error sending welcome email:', error);
+    }
+}
+
+async function sendReminderEmail(email, name, reminder) {
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: `Reminder: ${reminder.title}`,
+        html: `<h1>Hi ${name},</h1>
+               <p>This is a reminder for you:</p>
+               <p><b>${reminder.message}</b></p>
+               <p>Have a great day!</p>`
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log(`Reminder email sent to ${email}`);
+    } catch (error) {
+        console.error('Error sending reminder email:', error);
+    }
+}
 
 const presetTemplates = [
     {
@@ -80,6 +146,72 @@ const authMiddleware = (req, res, next) => {
         res.redirect('/login.html');
     }
 };
+
+// --- Web Push Notification Routes ---
+
+// Subscribe route
+app.post('/subscribe', authMiddleware, async (req, res) => {
+    const subscription = req.body;
+    const userId = req.session.user.id;
+
+    const db = client.db('webprog');
+    const subscriptionsCollection = db.collection('subscriptions');
+
+    try {
+        // Optional: remove old subscription for the same user
+        await subscriptionsCollection.deleteMany({ userId: new ObjectId(userId) });
+        
+        await subscriptionsCollection.insertOne({
+            userId: new ObjectId(userId),
+            subscription: subscription
+        });
+        
+        res.status(201).json({ message: 'Subscription saved.' });
+    } catch (error) {
+        console.error('Error saving subscription:', error);
+        res.status(500).send('Failed to save subscription.');
+    }
+});
+
+// Unsubscribe route
+app.post('/unsubscribe', authMiddleware, async (req, res) => {
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const subscriptionsCollection = db.collection('subscriptions');
+
+    try {
+        await subscriptionsCollection.deleteMany({ userId: new ObjectId(userId) });
+        res.status(200).json({ message: 'Unsubscribed successfully.' });
+    } catch (error) {
+        console.error('Error unsubscribing:', error);
+        res.status(500).send('Failed to unsubscribe.');
+    }
+});
+
+// Send notification route (for testing)
+app.post('/send-notification', authMiddleware, async (req, res) => {
+    const { title, message } = req.body;
+    const userId = req.session.user.id;
+    
+    const db = client.db('webprog');
+    const subscriptionsCollection = db.collection('subscriptions');
+
+    try {
+        const userSubscriptions = await subscriptionsCollection.find({ userId: new ObjectId(userId) }).toArray();
+
+        const notificationPayload = JSON.stringify({ title, body: message });
+
+        const promises = userSubscriptions.map(sub => webPush.sendNotification(sub.subscription, notificationPayload));
+        
+        await Promise.all(promises);
+
+        res.status(200).json({ message: 'Notification sent.' });
+
+    } catch (error) {
+        console.error('Error sending notification:', error);
+        res.status(500).send('Failed to send notification.');
+    }
+});
 
 // --- Application Routes ---
 
@@ -131,7 +263,10 @@ app.post('/register', async (req, res) => {
             age: parseInt(age, 10),
             weight: weight ? parseFloat(weight) : null,
             height: height ? parseInt(height, 10) : null,
-            createdAt: new Date()
+            createdAt: new Date(),
+            settings: {
+                emailNotifications: true // Default to true
+            }
         });
 
         // Add preset templates for the new user
@@ -144,6 +279,16 @@ app.post('/register', async (req, res) => {
         }));
         
         await templatesCollection.insertMany(userPresetTemplates);
+
+        // Send welcome email
+        const user = await db.collection('users').findOne({ _id: new ObjectId(req.session.user.id) });
+        
+        if (user && user.settings && user.settings.emailNotifications === false) {
+            console.log(`Email notifications are disabled for ${email}. Skipping welcome email.`);
+            return;
+        }
+
+        await sendWelcomeEmail(email, name);
 
         res.redirect('/login.html');
     } catch (error) {
@@ -910,6 +1055,268 @@ app.get('/weekly-activity', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Error fetching weekly activity data:', error);
         res.status(500).send('Failed to fetch weekly activity data');
+        }
+});
+// PUT /api/profile/settings - Update user notification settings
+app.put('/api/profile/settings', authMiddleware, async (req, res) => {
+    const { emailNotifications } = req.body;
+    const db = client.db('webprog');
+
+    try {
+        const result = await db.collection('users').updateOne(
+            { _id: new ObjectId(req.session.user.id) },
+            { 
+                $set: {
+                    'settings.emailNotifications': emailNotifications
+                }
+            }
+        );
+        if (result.matchedCount === 0) {
+            return res.status(404).send('User not found.');
+        }
+        res.json({ message: 'Settings updated successfully.' });
+    } catch (error) {
+        console.error('Error updating settings:', error);
+        res.status(500).send('Failed to update settings.');
+    }
+});
+
+// --- Scheduled Notification Routes ---
+
+app.get('/api/scheduled-notifications', authMiddleware, async (req, res) => {
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const scheduledNotificationsCollection = db.collection('scheduled_notifications');
+
+    try {
+        const notifications = await scheduledNotificationsCollection
+            .find({ userId: new ObjectId(userId) })
+            .sort({ time: 1 })
+            .toArray();
+        res.status(200).json(notifications);
+    } catch (error) {
+        console.error('Error fetching scheduled notifications:', error);
+        res.status(500).send('Failed to fetch scheduled notifications.');
+    }
+});
+
+app.post('/api/schedule-notification', authMiddleware, async (req, res) => {
+    const { title, message, schedule } = req.body;
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const scheduledNotificationsCollection = db.collection('scheduled_notifications');
+
+    if (!title || !message || !schedule || !schedule.type || !schedule.value) {
+        return res.status(400).send('Invalid request body. Requires title, message, and a schedule object with type and value.');
+    }
+
+    try {
+        const newNotification = {
+            userId: new ObjectId(userId),
+            title,
+            message,
+            schedule: {
+                type: schedule.type, // 'daily' or 'one-time'
+                // For one-time, convert ISO string back to Date object for MongoDB
+                value: schedule.type === 'one-time' ? new Date(schedule.value) : schedule.value
+            },
+            isEnabled: true,
+            lastSentDate: null
+        };
+        const result = await scheduledNotificationsCollection.insertOne(newNotification);
+        console.log('[DB] Inserted notification:', newNotification);
+        
+        res.status(201).json({ ...newNotification, _id: result.insertedId });
+    } catch (error) {
+        console.error('Error scheduling notification:', error);
+        res.status(500).send('Failed to schedule notification.');
+    }
+});
+
+app.put('/api/schedule-notification/:id/toggle', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    const { isEnabled } = req.body;
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const scheduledNotificationsCollection = db.collection('scheduled_notifications');
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).send('Invalid notification ID.');
+    }
+
+    if (typeof isEnabled !== 'boolean') {
+        return res.status(400).send('Invalid isEnabled value.');
+    }
+
+    try {
+        const result = await scheduledNotificationsCollection.updateOne(
+            { _id: new ObjectId(id), userId: new ObjectId(userId) },
+            { $set: { isEnabled: isEnabled } }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).send('Scheduled notification not found or user not authorized.');
+        }
+
+        res.status(200).json({ message: `Notification ${isEnabled ? 'enabled' : 'disabled'} successfully.` });
+    } catch (error) {
+        console.error('Error toggling notification:', error);
+        res.status(500).send('Failed to toggle notification.');
+    }
+});
+
+app.put('/api/schedule-notification/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    const { title, message, schedule } = req.body;
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const scheduledNotificationsCollection = db.collection('scheduled_notifications');
+
+    console.log(`[EDIT] Received update for ID: ${id}. New data:`, { title, message, schedule }); // Enhanced logging
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).send('Invalid notification ID.');
+    }
+
+    if (!title || !message || !schedule || !schedule.type || !schedule.value) {
+        return res.status(400).send('Missing required fields: title, message, schedule.');
+    }
+
+    try {
+        const result = await scheduledNotificationsCollection.updateOne(
+            { _id: new ObjectId(id), userId: new ObjectId(userId) },
+            { $set: { 
+                title, 
+                message, 
+                schedule: {
+                    type: schedule.type,
+                    value: schedule.type === 'one-time' ? new Date(schedule.value) : schedule.value
+                },
+                lastSentDate: null // Reset lastSentDate on any edit
+            } }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).send('Scheduled notification not found or user not authorized.');
+        }
+
+        res.status(200).json({ message: 'Notification updated successfully.' });
+    } catch (error) {
+        console.error('Error updating notification:', error);
+        res.status(500).send('Failed to update notification.');
+    }
+});
+
+app.delete('/api/cancel-notification/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const scheduledNotificationsCollection = db.collection('scheduled_notifications');
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).send('Invalid notification ID.');
+    }
+
+    try {
+        console.log(`Attempting to delete notification with ID: ${id} for user: ${userId}`);
+        const result = await scheduledNotificationsCollection.deleteOne({
+            _id: new ObjectId(id),
+            userId: new ObjectId(userId) // Ensure users can only delete their own notifications
+        });
+
+        if (result.deletedCount === 0) {
+            console.log(`Deletion failed: No notification found with ID: ${id} for user: ${userId}`);
+            return res.status(404).send('Scheduled notification not found or user not authorized.');
+        }
+
+        console.log(`Successfully deleted notification with ID: ${id}`);
+        res.status(200).json({ message: 'Notification canceled successfully.' });
+    } catch (error) {
+        console.error('Error canceling notification:', error);
+        res.status(500).send('Failed to cancel notification.');
+    }
+});
+
+// Cron job to send scheduled notifications
+cron.schedule('* * * * *', async () => {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+    console.log(`[CRON] Running check at ${currentTime}...`); // Enhanced logging
+    
+    // Set the start of the minute for one-time check
+    const startOfMinute = new Date(now);
+    startOfMinute.setSeconds(0, 0);
+    const endOfMinute = new Date(startOfMinute.getTime() + 60000);
+
+    console.log(`[CRON] Querying for one-time between ${startOfMinute.toISOString()} and ${endOfMinute.toISOString()}`); // Enhanced logging
+
+    const db = client.db('webprog');
+    const scheduledNotificationsCollection = db.collection('scheduled_notifications');
+    const subscriptionsCollection = db.collection('subscriptions');
+    const usersCollection = db.collection('users');
+    
+    try {
+        const dueNotifications = await scheduledNotificationsCollection.find({
+            isEnabled: true,
+            $or: [
+                // Find due daily notifications
+                { 
+                    'schedule.type': 'daily', 
+                    'schedule.value': currentTime, 
+                    $or: [ { lastSentDate: null }, { lastSentDate: { $ne: today } } ] 
+                },
+                // Find due one-time notifications (scheduled for the current minute)
+                {
+                    'schedule.type': 'one-time',
+                    'schedule.value': { $gte: startOfMinute, $lt: endOfMinute }
+                }
+            ]
+        }).toArray();
+
+        if (dueNotifications.length > 0) {
+            console.log(`[CRON] Found ${dueNotifications.length} due notifications.`, dueNotifications); // Enhanced logging
+        }
+
+        for (const notification of dueNotifications) {
+            // Fetch user for email settings
+            const user = await usersCollection.findOne({ _id: notification.userId });
+
+            // --- Send Push Notification ---
+            const userSubscriptions = await subscriptionsCollection.find({ userId: notification.userId }).toArray();
+            
+            if (userSubscriptions.length > 0) {
+                const payload = JSON.stringify({ title: notification.title, body: notification.message });
+                
+                const sendPromises = userSubscriptions.map(sub => 
+                    webPush.sendNotification(sub.subscription, payload)
+                );
+
+                await Promise.all(sendPromises);
+                console.log(`Sent scheduled push notification to user ${notification.userId}`);
+            }
+
+            // --- Send Email Notification ---
+            if (user && user.settings && user.settings.emailNotifications) {
+                await sendReminderEmail(user.email, user.name, notification);
+            }
+
+            // --- Update Notification Status ---
+            if (notification.schedule.type === 'one-time') {
+                // Delete one-time notifications after they're sent
+                await scheduledNotificationsCollection.deleteOne({ _id: notification._id });
+                console.log(`[CRON] Deleted one-time notification ${notification._id}`);
+            } else {
+                // Update the last sent date for daily notifications
+                await scheduledNotificationsCollection.updateOne(
+                    { _id: notification._id },
+                    { $set: { lastSentDate: today } }
+                );
+            }
+        }
+    } catch (error) {
+        console.error('Error in cron job:', error);
     }
 });
 
@@ -918,5 +1325,5 @@ app.get('/weekly-activity', authMiddleware, async (req, res) => {
 app.use(express.static(path.join(__dirname)));
 
 app.listen(port, () => {
-  console.log(`Server listening at http://localhost:${port}`)
+    console.log(`Server listening at http://localhost:${port}`)
 }); 
