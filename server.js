@@ -986,13 +986,7 @@ app.get('/api/meal-suggestions', authMiddleware, async (req, res) => {
         return res.json([]);
     }
 
-    // IMPORTANT: Replace with your actual Spoonacular API key
     const apiKey = process.env.SPOONACULAR_API_KEY || '5202bfc35b8d4300b0a151c1791061f9';
-
-    if (apiKey === 'YOUR_SPOONACULAR_API_KEY_HERE') {
-        console.error("Spoonacular API key is missing.");
-        return res.status(500).json({ message: "Meal suggestion service is not configured." });
-    }
 
     const apiUrl = `https://api.spoonacular.com/recipes/complexSearch`;
 
