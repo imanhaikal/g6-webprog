@@ -260,8 +260,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (page === 'profile') {
                             initializeProfilePage();
                             initializeAccountDeletion();
+                            handlePasswordUpdate();
                         }
-                        
+
                         // Initialize nutrition page
                         if (page === 'nutrition') {
                             initializeNutritionPage();
@@ -1996,502 +1997,601 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 }
 
-        // --- Nutrition Page ---
-        let currentMealSuggestion = null; // Variable to hold meal data for the modal
+// --- Nutrition Page ---
+let currentMealSuggestion = null; // Variable to hold meal data for the modal
 
-        function initializeNutritionPage() {
-            // Calorie Calculator
-            const calorieForm = document.getElementById('calorieForm');
-            if (calorieForm) {
-                calorieForm.addEventListener('submit', handleCalorieFormSubmit);
-            }
-            loadCalorieEntries();
-            updateCalorieSuggestion();
+function initializeNutritionPage() {
+    // Calorie Calculator
+    const calorieForm = document.getElementById('calorieForm');
+    if (calorieForm) {
+        calorieForm.addEventListener('submit', handleCalorieFormSubmit);
+    }
+    loadCalorieEntries();
+    updateCalorieSuggestion();
 
-            // Meal Search
-            const mealSearchForm = document.getElementById('mealSearchForm');
-            if (mealSearchForm) {
-                mealSearchForm.addEventListener('submit', handleMealSearch);
-            }
+    // Meal Search
+    const mealSearchForm = document.getElementById('mealSearchForm');
+    if (mealSearchForm) {
+        mealSearchForm.addEventListener('submit', handleMealSearch);
+    }
 
-            // Custom Meal Form
-            const addCustomMealForm = document.getElementById('addCustomMealForm');
-            if (addCustomMealForm) {
-                addCustomMealForm.addEventListener('submit', handleAddCustomMeal);
-            }
+    // Custom Meal Form
+    const addCustomMealForm = document.getElementById('addCustomMealForm');
+    if (addCustomMealForm) {
+        addCustomMealForm.addEventListener('submit', handleAddCustomMeal);
+    }
 
-            // Save to Favorites Button in Modal
-            const saveToFavoritesBtn = document.getElementById('saveToFavoritesBtn');
-            if(saveToFavoritesBtn) {
-                saveToFavoritesBtn.addEventListener('click', saveCurrentSuggestionToFavorites);
-            }
+    // Save to Favorites Button in Modal
+    const saveToFavoritesBtn = document.getElementById('saveToFavoritesBtn');
+    if(saveToFavoritesBtn) {
+        saveToFavoritesBtn.addEventListener('click', saveCurrentSuggestionToFavorites);
+    }
 
-            // We're now manually showing the modal and calling populateMealDetailModal
+    // We're now manually showing the modal and calling populateMealDetailModal
 
-            // Load saved meal plans
-            loadSavedMealPlans();
+    // Load saved meal plans
+    loadSavedMealPlans();
 
-            // Add global event delegation for buttons
-            document.addEventListener('click', function(event) {
-                // Delete meal plan button
-                if (event.target.closest('.delete-meal-plan-btn')) {
-                    const mealPlanCard = event.target.closest('[data-meal-plan-id]');
-                    if (mealPlanCard) {
-                        const mealPlanId = mealPlanCard.dataset.mealPlanId;
-                        deleteMealPlan(mealPlanId);
-                    }
-                }
-
-                // Read more button
-                if (event.target.classList.contains('read-more-btn')) {
-                    const textContainer = event.target.closest('.text-container');
-                    if (textContainer) {
-                        textContainer.classList.toggle('expanded');
-                        event.target.textContent = textContainer.classList.contains('expanded') ? 'Read Less' : 'Read More';
-                    }
-                }
-            });
-        }
-
-        async function handleCalorieFormSubmit(e) {
-            e.preventDefault();
-            const foodItem = document.getElementById('foodItem').value;
-            const caloriesIntake = document.getElementById('caloriesIntake').value;
-            const mealDate = document.getElementById('mealDate').value;
-            if (!foodItem || !caloriesIntake || !mealDate) {
-                return alert('Please fill out all fields.');
-            }
-            try {
-                const response = await fetch('/api/calories', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ foodItem, caloriesIntake, mealDate }),
-                });
-                if (!response.ok) throw new Error(await response.text() || 'Failed to log calorie intake.');
-                alert('Calorie intake logged successfully!');
-                e.target.reset();
-                loadCalorieEntries();
-            } catch (error) {
-                console.error('Error logging calorie intake:', error);
-                alert(`An error occurred: ${error.message}`);
+    // Add global event delegation for buttons
+    document.addEventListener('click', function(event) {
+        // Delete meal plan button
+        if (event.target.closest('.delete-meal-plan-btn')) {
+            const mealPlanCard = event.target.closest('[data-meal-plan-id]');
+            if (mealPlanCard) {
+                const mealPlanId = mealPlanCard.dataset.mealPlanId;
+                deleteMealPlan(mealPlanId);
             }
         }
 
-        async function updateCalorieSuggestion() {
-            const suggestionEl = document.getElementById('calorie-suggestion-panel');
-            if (!suggestionEl) return;
-
-            try {
-                const response = await fetch('/api/calorie-suggestion');
-                const data = await response.json();
-
-                if (!response.ok) {
-                    suggestionEl.innerHTML = `<strong>Note:</strong> ${data.message || 'Could not calculate suggestion.'}`;
-                    suggestionEl.classList.replace('alert-success', 'alert-warning');
-                    return;
-                }
-
-                suggestionEl.innerHTML = `
-                    <strong>Suggested Daily Calorie Intake:</strong> ${data.suggestedCalories} kcal
-                    <br>
-                    <small>${data.message}</small>
-                `;
-                suggestionEl.classList.replace('alert-warning', 'alert-success');
-
-            } catch (error) {
-                console.error('Error fetching calorie suggestion:', error);
-                suggestionEl.innerHTML = '<strong>Note:</strong> Could not retrieve calorie suggestion.';
-                suggestionEl.classList.replace('alert-success', 'alert-warning');
+        // Read more button
+        if (event.target.classList.contains('read-more-btn')) {
+            const textContainer = event.target.closest('.text-container');
+            if (textContainer) {
+                textContainer.classList.toggle('expanded');
+                event.target.textContent = textContainer.classList.contains('expanded') ? 'Read Less' : 'Read More';
             }
         }
+    });
+}
 
-        async function handleMealSearch(e) {
-            e.preventDefault();
-            const query = document.getElementById('mealSearchInput').value;
-            if (!query) return;
+async function handleCalorieFormSubmit(e) {
+    e.preventDefault();
+    const foodItem = document.getElementById('foodItem').value;
+    const caloriesIntake = document.getElementById('caloriesIntake').value;
+    const mealDate = document.getElementById('mealDate').value;
+    if (!foodItem || !caloriesIntake || !mealDate) {
+        return alert('Please fill out all fields.');
+    }
+    try {
+        const response = await fetch('/api/calories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ foodItem, caloriesIntake, mealDate }),
+        });
+        if (!response.ok) throw new Error(await response.text() || 'Failed to log calorie intake.');
+        alert('Calorie intake logged successfully!');
+        e.target.reset();
+        loadCalorieEntries();
+    } catch (error) {
+        console.error('Error logging calorie intake:', error);
+        alert(`An error occurred: ${error.message}`);
+    }
+}
 
-            const container = document.getElementById('mealSuggestionsContainer');
-            container.innerHTML = '<p class="text-muted">Searching...</p>';
+async function updateCalorieSuggestion() {
+    const suggestionEl = document.getElementById('calorie-suggestion-panel');
+    if (!suggestionEl) return;
 
-            try {
-                const response = await fetch(`/api/meal-suggestions?q=${encodeURIComponent(query)}`);
-                if (!response.ok) throw new Error('Failed to fetch meal suggestions.');
-                const suggestions = await response.json();
-                displayMealSuggestions(suggestions);
-            } catch (error) {
-                console.error('Error searching meals:', error);
-                container.innerHTML = '<p class="text-danger">Error searching for meals.</p>';
-            }
+    try {
+        const response = await fetch('/api/calorie-suggestion');
+        const data = await response.json();
+
+        if (!response.ok) {
+            suggestionEl.innerHTML = `<strong>Note:</strong> ${data.message || 'Could not calculate suggestion.'}`;
+            suggestionEl.classList.replace('alert-success', 'alert-warning');
+            return;
         }
 
-        function displayMealSuggestions(suggestions) {
-            const container = document.getElementById('mealSuggestionsContainer');
-            container.innerHTML = '';
-            if (suggestions.length === 0) {
-                container.innerHTML = '<p class="text-muted">No suggestions found.</p>';
-                return;
-            }
+        suggestionEl.innerHTML = `
+            <strong>Suggested Daily Calorie Intake:</strong> ${data.suggestedCalories} kcal
+            <br>
+            <small>${data.message}</small>
+        `;
+        suggestionEl.classList.replace('alert-warning', 'alert-success');
 
-            // Create a row for Bootstrap grid
-            const row = document.createElement('div');
-            row.className = 'row';
+    } catch (error) {
+        console.error('Error fetching calorie suggestion:', error);
+        suggestionEl.innerHTML = '<strong>Note:</strong> Could not retrieve calorie suggestion.';
+        suggestionEl.classList.replace('alert-success', 'alert-warning');
+    }
+}
 
-            suggestions.forEach(meal => {
-                // Sanitize and format data
-                const calories = Math.round(parseFloat(meal.calories)) || 'N/A';
-                const imageUrl = meal.imageUrl || 'https://placehold.co/300x200?text=No+Image';
+async function handleMealSearch(e) {
+    e.preventDefault();
+    const query = document.getElementById('mealSearchInput').value;
+    if (!query) return;
 
-                // Create a column for each meal card
-                const col = document.createElement('div');
-                col.className = 'col-md-6 col-lg-4 mb-3';
+    const container = document.getElementById('mealSuggestionsContainer');
+    container.innerHTML = '<p class="text-muted">Searching...</p>';
 
-                // Format ingredients and recipe text with read more functionality
-                const ingredients = meal.ingredients || 'Ingredients not available.';
-                const recipe = meal.recipe || 'Recipe instructions not available.';
+    try {
+        const response = await fetch(`/api/meal-suggestions?q=${encodeURIComponent(query)}`);
+        if (!response.ok) throw new Error('Failed to fetch meal suggestions.');
+        const suggestions = await response.json();
+        displayMealSuggestions(suggestions);
+    } catch (error) {
+        console.error('Error searching meals:', error);
+        container.innerHTML = '<p class="text-danger">Error searching for meals.</p>';
+    }
+}
 
-                // Create the card with complete details
-                col.innerHTML = `
-                    <div class="card h-100 shadow-sm">
-                        <img src="${imageUrl}" class="card-img-top" alt="${meal.name}" style="height: 180px; object-fit: cover;">
-                        <div class="card-body">
-                            <h5 class="card-title">${meal.name}</h5>
-                            <p class="mb-2"><strong>Calories:</strong> ${calories} kcal</p>
+function displayMealSuggestions(suggestions) {
+    const container = document.getElementById('mealSuggestionsContainer');
+    container.innerHTML = '';
+    if (suggestions.length === 0) {
+        container.innerHTML = '<p class="text-muted">No suggestions found.</p>';
+        return;
+    }
 
-                            <div class="mb-3">
-                                <h6 class="text-primary mb-2">Ingredients:</h6>
-                                <div class="text-container">
-                                    <p class="small text-content">${ingredients}</p>
-                                    ${ingredients.length > 100 ?
-                                        `<button class="btn btn-link btn-sm p-0 read-more-btn">Read More</button>` : ''}
-                                </div>
-                            </div>
+    // Create a row for Bootstrap grid
+    const row = document.createElement('div');
+    row.className = 'row';
 
-                            <div>
-                                <h6 class="text-primary mb-2">Recipe:</h6>
-                                <div class="text-container">
-                                    <p class="small text-content">${recipe}</p>
-                                    ${recipe.length > 100 ?
-                                        `<button class="btn btn-link btn-sm p-0 read-more-btn">Read More</button>` : ''}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-footer bg-transparent border-top-0 text-center">
-                            <button class="btn btn-success btn-sm save-meal-btn w-75">Save to My Meals</button>
+    suggestions.forEach(meal => {
+        // Sanitize and format data
+        const calories = Math.round(parseFloat(meal.calories)) || 'N/A';
+        const imageUrl = meal.imageUrl || 'https://placehold.co/300x200?text=No+Image';
+
+        // Format ingredients and recipe text with read more functionality
+        const ingredients = meal.ingredients || 'Ingredients not available.';
+        const recipe = meal.recipe || 'Recipe instructions not available.';
+
+        // Create a column for each meal card
+        const col = document.createElement('div');
+        col.className = 'col-md-6 col-lg-4 mb-3';
+        
+        // Create the card with complete details
+        col.innerHTML = `
+            <div class="card h-100 shadow-sm">
+                <img src="${imageUrl}" class="card-img-top" alt="${meal.name}" style="height: 180px; object-fit: cover;">
+                <div class="card-body">
+                    <h5 class="card-title">${meal.name}</h5>
+                    <p class="mb-2"><strong>Calories:</strong> ${calories} kcal</p>
+
+                    <div class="mb-3">
+                        <h6 class="text-primary mb-2">Ingredients:</h6>
+                        <div class="text-container">
+                            <p class="small text-content">${ingredients}</p>
+                            ${ingredients.length > 100 ?
+                                `<button class="btn btn-link btn-sm p-0 read-more-btn">Read More</button>` : ''}
                         </div>
                     </div>
-                `;
 
-                row.appendChild(col);
+                    <div>
+                        <h6 class="text-primary mb-2">Recipe:</h6>
+                        <div class="text-container">
+                            <p class="small text-content">${recipe}</p>
+                            ${recipe.length > 100 ?
+                                `<button class="btn btn-link btn-sm p-0 read-more-btn">Read More</button>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-top-0 text-center">
+                    <button class="btn btn-success btn-sm save-meal-btn w-75">Save to My Meals</button>
+                </div>
+            </div>
+        `;
 
-                // Store all meal data as properties
-                const mealData = {
-                    id: meal.id,
-                    name: meal.name,
-                    calories: calories,
-                    imageurl: meal.imageUrl,
-                    ingredients: meal.ingredients,
-                    recipe: meal.recipe
-                };
+        row.appendChild(col);
 
-                // Add event listener to save button
-                const saveMealBtn = col.querySelector('.save-meal-btn');
-                saveMealBtn.addEventListener('click', () => {
-                    // Set current meal suggestion
-                    currentMealSuggestion = mealData;
+        // Store all meal data as properties
+        const mealData = {
+            id: meal.id,
+            name: meal.name,
+            calories: calories,
+            imageurl: meal.imageUrl,
+            ingredients: meal.ingredients,
+            recipe: meal.recipe
+        };
 
-                    // Save the meal directly
-                    saveCurrentSuggestionToFavorites();
-                });
-            });
+        // Add event listener to save button
+        const saveMealBtn = col.querySelector('.save-meal-btn');
+        saveMealBtn.addEventListener('click', () => {
+            // Set current meal suggestion
+            currentMealSuggestion = mealData;
 
-            container.appendChild(row);
+            // Save the meal directly
+            saveCurrentSuggestionToFavorites();
+        });
+    });
+
+    container.appendChild(row);
+}
+
+async function loadSavedMealPlans() {
+    const container = document.getElementById('savedMealPlansContainer');
+    container.innerHTML = '<p class="text-muted">Loading saved meals...</p>';
+    try {
+        const response = await fetch('/api/meal-plans');
+        if (!response.ok) throw new Error('Failed to fetch saved meal plans.');
+        const mealPlans = await response.json();
+
+        container.innerHTML = ''; // Clear loading message
+        if (mealPlans.length === 0) {
+            container.innerHTML = '<p class="text-muted col-12">No meals saved yet.</p>';
+            return;
         }
 
-        async function loadSavedMealPlans() {
-            const container = document.getElementById('savedMealPlansContainer');
-            container.innerHTML = '<p class="text-muted">Loading saved meals...</p>';
-            try {
-                const response = await fetch('/api/meal-plans');
-                if (!response.ok) throw new Error('Failed to fetch saved meal plans.');
-                const mealPlans = await response.json();
+        // Create a row for Bootstrap grid
+        const row = document.createElement('div');
+        row.className = 'row';
 
-                container.innerHTML = ''; // Clear loading message
-                if (mealPlans.length === 0) {
-                    container.innerHTML = '<p class="text-muted col-12">No meals saved yet.</p>';
+        mealPlans.forEach(meal => {
+            const mealCard = document.createElement('div');
+            mealCard.className = 'col-md-6 col-lg-4 mb-3';
+
+            // Format ingredients and recipe text with read more functionality
+            const ingredients = meal.ingredients || 'Ingredients not available.';
+            const recipe = meal.recipe || 'Recipe instructions not available.';
+
+            mealCard.innerHTML = `
+                <div class="card h-100 shadow-sm" data-meal-plan-id="${meal._id}">
+                    <img src="${meal.imageUrl || 'https://placehold.co/300x200?text=No+Image'}" class="card-img-top" alt="${meal.name}" style="height: 180px; object-fit: cover;">
+                    <div class="card-body">
+                        <h5 class="card-title">${meal.name}</h5>
+                        <p class="mb-2"><strong>Calories:</strong> ${meal.calories} kcal</p>
+
+                        <div class="mb-3">
+                            <h6 class="text-primary mb-2">Ingredients:</h6>
+                            <div class="text-container">
+                                <p class="small text-content">${ingredients}</p>
+                                ${ingredients.length > 100 ?
+                                    `<button class="btn btn-link btn-sm p-0 read-more-btn">Read More</button>` : ''}
+                            </div>
+                        </div>
+
+                        <div>
+                            <h6 class="text-primary mb-2">Recipe:</h6>
+                            <div class="text-container">
+                                <p class="small text-content">${recipe}</p>
+                                ${recipe.length > 100 ?
+                                    `<button class="btn btn-link btn-sm p-0 read-more-btn">Read More</button>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0 text-center">
+                        <button class="btn btn-outline-danger delete-meal-plan-btn w-100">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            row.appendChild(mealCard);
+
+            // No view recipe button anymore - all details are shown directly on the card
+        });
+
+        container.appendChild(row);
+
+    } catch (error) {
+        console.error('Error loading saved meals:', error);
+        container.innerHTML = '<p class="text-danger col-12">Could not load saved meals.</p>';
+    }
+}
+
+function populateMealDetailModal() {
+    // No need to extract from event - currentMealSuggestion is already set
+
+    // Set meal name in both places
+    document.getElementById('mealDetailName').textContent = currentMealSuggestion.name;
+    document.getElementById('mealDetailNameBanner').textContent = currentMealSuggestion.name;
+
+    // Set meal image
+    const imageUrl = currentMealSuggestion.imageurl || 'https://placehold.co/800x400?text=No+Image+Available';
+    document.getElementById('mealDetailImage').src = imageUrl;
+
+    // Set calories in both places
+    const calories = currentMealSuggestion.calories || 'N/A';
+    document.getElementById('mealDetailCaloriesValue').textContent = calories;
+    document.getElementById('mealDetailCalories').innerHTML = `
+        <strong>Calories:</strong> ${calories} kcal
+        ${currentMealSuggestion.carbs ? `<br><small>Carbs: ${currentMealSuggestion.carbs}g</small>` : ''}
+        ${currentMealSuggestion.protein ? `<br><small>Protein: ${currentMealSuggestion.protein}g</small>` : ''}
+        ${currentMealSuggestion.fat ? `<br><small>Fat: ${currentMealSuggestion.fat}g</small>` : ''}
+    `;
+
+    // Set ingredients and recipe with fallback text
+    const ingredients = currentMealSuggestion.ingredients || 'No ingredients information available.';
+    document.getElementById('mealDetailIngredients').textContent = ingredients;
+
+    const recipe = currentMealSuggestion.recipe || 'No preparation instructions available.';
+    document.getElementById('mealDetailRecipe').textContent = recipe;
+}
+
+async function saveCurrentSuggestionToFavorites() {
+    if (!currentMealSuggestion) return;
+    try {
+        const response = await fetch('/api/meal-plans', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: currentMealSuggestion.name,
+                calories: currentMealSuggestion.calories,
+                ingredients: currentMealSuggestion.ingredients,
+                recipe: currentMealSuggestion.recipe,
+                imageUrl: currentMealSuggestion.imageurl,
+                isCustom: false
+            })
+        });
+        if (!response.ok) throw new Error('Failed to save meal plan.');
+        alert('Meal saved to your favorites!');
+
+        // Reload saved meal plans
+        await loadSavedMealPlans();
+
+        // Scroll to the saved meals section
+        const savedMealsSection = document.getElementById('savedMealPlansContainer');
+        if (savedMealsSection) {
+            savedMealsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+    } catch (error) {
+        console.error('Error saving meal plan:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+async function handleAddCustomMeal(e) {
+    e.preventDefault();
+    const form = e.target;
+
+    // Get form values
+    const mealPicture = document.getElementById('customMealPicture').files[0];
+    const name = document.getElementById('customMealName').value;
+    const calories = document.getElementById('customMealCalories').value;
+    const ingredients = document.getElementById('customMealIngredients').value || 'No ingredients specified';
+    const recipe = document.getElementById('customMealRecipe').value || 'No recipe specified';
+
+    // Validate required fields
+    if (!mealPicture || !name || !calories) {
+        alert('Please fill in all required fields (picture, name, and calories)');
+        return;
+    }
+
+    // Show loading state
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+
+    const formData = new FormData();
+    formData.append('mealPicture', mealPicture);
+    formData.append('name', name);
+    formData.append('calories', calories);
+    formData.append('ingredients', ingredients);
+    formData.append('recipe', recipe);
+    formData.append('isCustom', true);
+
+    try {
+        const response = await fetch('/api/meal-plans', {
+            method: 'POST',
+            body: formData,
+        });
+        if (!response.ok) throw new Error('Failed to save custom meal.');
+
+        // Success message
+        alert('Custom meal saved successfully!');
+        form.reset();
+
+        // Load saved meal plans and scroll to them
+        await loadSavedMealPlans();
+
+        // Scroll to the saved meals section
+        const savedMealsSection = document.getElementById('savedMealPlansContainer');
+        if (savedMealsSection) {
+            savedMealsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+    } catch(error) {
+        console.error('Error saving custom meal:', error);
+        alert('Error: ' + error.message);
+    } finally {
+        // Restore button state
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+    }
+}
+
+async function deleteCalorieEntry(entryId) {
+    if (confirm('Are you sure you want to delete this entry?')) {
+        try {
+            const response = await fetch(`/api/calories/${entryId}`, { method: 'DELETE' });
+            if (!response.ok) {
+                throw new Error(await response.text() || 'Failed to delete entry.');
+            }
+            // Remove from UI
+            document.querySelector(`[data-calorie-id="${entryId}"]`).remove();
+            alert('Entry deleted successfully!');
+        } catch (error) {
+            console.error('Error deleting entry:', error);
+            alert(`Error: ${error.message}`);
+        }
+    }
+}
+
+async function deleteMealPlan(mealPlanId) {
+    if (confirm('Are you sure you want to delete this saved meal?')) {
+        // Find the card and show loading state
+        const mealCard = document.querySelector(`[data-meal-plan-id="${mealPlanId}"]`);
+        if (!mealCard) return;
+
+        // Save original content and replace with loading indicator
+        const originalContent = mealCard.innerHTML;
+        mealCard.innerHTML = `
+            <div class="d-flex justify-content-center align-items-center h-100 p-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Deleting...</span>
+                </div>
+                <span class="ms-3">Deleting...</span>
+            </div>
+        `;
+
+        try {
+            const response = await fetch(`/api/meal-plans/${mealPlanId}`, { method: 'DELETE' });
+
+            if (!response.ok) {
+                // If error, restore original content
+                mealCard.innerHTML = originalContent;
+                throw new Error('Failed to delete meal plan.');
+            }
+
+            // On success, fade out the card and then reload all meal plans
+            mealCard.style.transition = 'opacity 0.5s ease';
+            mealCard.style.opacity = '0';
+
+            // Wait for fade animation to complete
+            setTimeout(async () => {
+                // Reload all meal plans
+                await loadSavedMealPlans();
+            }, 500);
+
+        } catch(error) {
+            console.error('Error deleting meal plan:', error);
+            alert('Error: ' + error.message);
+        }
+    }
+}
+
+async function loadCalorieEntries() {
+    try {
+        const response = await fetch('/api/calories');
+        if (!response.ok) throw new Error('Failed to fetch calorie entries.');
+        const entries = await response.json();
+        const listElement = document.getElementById('loggedMealsList');
+        if (!listElement) return;
+        listElement.innerHTML = ''; // Clear current list
+        if (entries.length === 0) {
+            listElement.innerHTML = '<li class="list-group-item">No meals logged yet.</li>';
+            return;
+        }
+        entries.forEach(entry => {
+            const listItem = document.createElement('li');
+            listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+            listItem.setAttribute('data-calorie-id', entry._id); // Use specific data attribute
+            const mealDate = new Date(entry.date).toLocaleString();
+            listItem.innerHTML = `
+                <div>
+                    <strong>${entry.foodItem}</strong> - ${entry.calories} kcal
+                    <br>
+                    <small class="text-muted">${mealDate}</small>
+                </div>
+                <button class="btn btn-sm btn-outline-danger delete-calorie-btn">Delete</button>
+            `;
+            listElement.appendChild(listItem);
+        });
+    } catch (error) {
+        console.error('Error loading calorie entries:', error);
+        const listElement = document.getElementById('loggedMealsList');
+        if (listElement) {
+            listElement.innerHTML = '<li class="list-group-item text-danger">Could not load meals.</li>';
+        }
+    }
+}
+
+async function handlePasswordUpdate() {
+    try {
+        const changePasswordForm = document.getElementById('changePasswordForm');
+        if (!changePasswordForm) return;
+
+        changePasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Get form elements
+            const currentPassword = document.getElementById('currentPassword');
+            const newPassword = document.getElementById('newPassword');
+            const confirmPassword = document.getElementById('confirmNewPassword');
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            
+            // Store original button text
+            const originalBtnText = submitBtn.innerHTML;
+            
+            try {
+                // Validate inputs
+                if (!currentPassword.value || !newPassword.value || !confirmPassword.value) {
+                    showSimpleAlert('All fields are required', 'danger');
+                    return;
+                }
+                
+                if (newPassword.value !== confirmPassword.value) {
+                    showSimpleAlert('New passwords do not match', 'danger');
+                    return;
+                }
+                
+                if (newPassword.value.length < 8) {
+                    showSimpleAlert('Password must be at least 8 characters', 'danger');
                     return;
                 }
 
-                // Create a row for Bootstrap grid
-                const row = document.createElement('div');
-                row.className = 'row';
+                // Show loading state
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `
+                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                    Updating...
+                `;
 
-                mealPlans.forEach(meal => {
-                    const mealCard = document.createElement('div');
-                    mealCard.className = 'col-md-6 col-lg-4 mb-3';
-
-                    // Format ingredients and recipe text with read more functionality
-                    const ingredients = meal.ingredients || 'Ingredients not available.';
-                    const recipe = meal.recipe || 'Recipe instructions not available.';
-
-                    mealCard.innerHTML = `
-                        <div class="card h-100 shadow-sm" data-meal-plan-id="${meal._id}">
-                            <img src="${meal.imageUrl || 'https://placehold.co/300x200?text=No+Image'}" class="card-img-top" alt="${meal.name}" style="height: 180px; object-fit: cover;">
-                            <div class="card-body">
-                                <h5 class="card-title">${meal.name}</h5>
-                                <p class="mb-2"><strong>Calories:</strong> ${meal.calories} kcal</p>
-
-                                <div class="mb-3">
-                                    <h6 class="text-primary mb-2">Ingredients:</h6>
-                                    <div class="text-container">
-                                        <p class="small text-content">${ingredients}</p>
-                                        ${ingredients.length > 100 ?
-                                            `<button class="btn btn-link btn-sm p-0 read-more-btn">Read More</button>` : ''}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h6 class="text-primary mb-2">Recipe:</h6>
-                                    <div class="text-container">
-                                        <p class="small text-content">${recipe}</p>
-                                        ${recipe.length > 100 ?
-                                            `<button class="btn btn-link btn-sm p-0 read-more-btn">Read More</button>` : ''}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="card-footer bg-transparent border-top-0 text-center">
-                                <button class="btn btn-outline-danger delete-meal-plan-btn w-100">
-                                    <i class="bi bi-trash"></i> Delete
-                                </button>
-                            </div>
-                        </div>
-                    `;
-
-                    row.appendChild(mealCard);
-
-                    // No view recipe button anymore - all details are shown directly on the card
-                });
-
-                container.appendChild(row);
-
-            } catch (error) {
-                console.error('Error loading saved meals:', error);
-                container.innerHTML = '<p class="text-danger col-12">Could not load saved meals.</p>';
-            }
-        }
-
-        function populateMealDetailModal() {
-            // No need to extract from event - currentMealSuggestion is already set
-
-            // Set meal name in both places
-            document.getElementById('mealDetailName').textContent = currentMealSuggestion.name;
-            document.getElementById('mealDetailNameBanner').textContent = currentMealSuggestion.name;
-
-            // Set meal image
-            const imageUrl = currentMealSuggestion.imageurl || 'https://placehold.co/800x400?text=No+Image+Available';
-            document.getElementById('mealDetailImage').src = imageUrl;
-
-            // Set calories in both places
-            const calories = currentMealSuggestion.calories || 'N/A';
-            document.getElementById('mealDetailCaloriesValue').textContent = calories;
-            document.getElementById('mealDetailCalories').innerHTML = `
-                <strong>Calories:</strong> ${calories} kcal
-                ${currentMealSuggestion.carbs ? `<br><small>Carbs: ${currentMealSuggestion.carbs}g</small>` : ''}
-                ${currentMealSuggestion.protein ? `<br><small>Protein: ${currentMealSuggestion.protein}g</small>` : ''}
-                ${currentMealSuggestion.fat ? `<br><small>Fat: ${currentMealSuggestion.fat}g</small>` : ''}
-            `;
-
-            // Set ingredients and recipe with fallback text
-            const ingredients = currentMealSuggestion.ingredients || 'No ingredients information available.';
-            document.getElementById('mealDetailIngredients').textContent = ingredients;
-
-            const recipe = currentMealSuggestion.recipe || 'No preparation instructions available.';
-            document.getElementById('mealDetailRecipe').textContent = recipe;
-        }
-
-        async function saveCurrentSuggestionToFavorites() {
-            if (!currentMealSuggestion) return;
-            try {
-                const response = await fetch('/api/meal-plans', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                // Send request to server
+                const response = await fetch('/api/update-password', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
                     body: JSON.stringify({
-                        name: currentMealSuggestion.name,
-                        calories: currentMealSuggestion.calories,
-                        ingredients: currentMealSuggestion.ingredients,
-                        recipe: currentMealSuggestion.recipe,
-                        imageUrl: currentMealSuggestion.imageurl,
-                        isCustom: false
+                        currentPassword: currentPassword.value,
+                        newPassword: newPassword.value
                     })
                 });
-                if (!response.ok) throw new Error('Failed to save meal plan.');
-                alert('Meal saved to your favorites!');
 
-                // Reload saved meal plans
-                await loadSavedMealPlans();
-
-                // Scroll to the saved meals section
-                const savedMealsSection = document.getElementById('savedMealPlansContainer');
-                if (savedMealsSection) {
-                    savedMealsSection.scrollIntoView({ behavior: 'smooth' });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to update password');
                 }
+
+                // Success - reset form and show message
+                changePasswordForm.reset();
+                showSimpleAlert('Password updated successfully!', 'success');
+                
             } catch (error) {
-                console.error('Error saving meal plan:', error);
-                alert('Error: ' + error.message);
-            }
-        }
-
-        async function handleAddCustomMeal(e) {
-            e.preventDefault();
-            const form = e.target;
-
-            // Get form values
-            const mealPicture = document.getElementById('customMealPicture').files[0];
-            const name = document.getElementById('customMealName').value;
-            const calories = document.getElementById('customMealCalories').value;
-            const ingredients = document.getElementById('customMealIngredients').value || 'No ingredients specified';
-            const recipe = document.getElementById('customMealRecipe').value || 'No recipe specified';
-
-            // Validate required fields
-            if (!mealPicture || !name || !calories) {
-                alert('Please fill in all required fields (picture, name, and calories)');
-                return;
-            }
-
-            // Show loading state
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalBtnText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
-
-            const formData = new FormData();
-            formData.append('mealPicture', mealPicture);
-            formData.append('name', name);
-            formData.append('calories', calories);
-            formData.append('ingredients', ingredients);
-            formData.append('recipe', recipe);
-            formData.append('isCustom', true);
-
-            try {
-                const response = await fetch('/api/meal-plans', {
-                    method: 'POST',
-                    body: formData,
-                });
-                if (!response.ok) throw new Error('Failed to save custom meal.');
-
-                // Success message
-                alert('Custom meal saved successfully!');
-                form.reset();
-
-                // Load saved meal plans and scroll to them
-                await loadSavedMealPlans();
-
-                // Scroll to the saved meals section
-                const savedMealsSection = document.getElementById('savedMealPlansContainer');
-                if (savedMealsSection) {
-                    savedMealsSection.scrollIntoView({ behavior: 'smooth' });
-                }
-            } catch(error) {
-                console.error('Error saving custom meal:', error);
-                alert('Error: ' + error.message);
+                console.error('Password update error:', error);
+                showSimpleAlert(error.message, 'danger');
             } finally {
-                // Restore button state
+                // Reset button state
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalBtnText;
             }
-        }
+        });
 
-        async function deleteCalorieEntry(entryId) {
-            if (confirm('Are you sure you want to delete this entry?')) {
-                try {
-                    const response = await fetch(`/api/calories/${entryId}`, { method: 'DELETE' });
-                    if (!response.ok) {
-                        throw new Error(await response.text() || 'Failed to delete entry.');
-                    }
-                    // Remove from UI
-                    document.querySelector(`[data-calorie-id="${entryId}"]`).remove();
-                    alert('Entry deleted successfully!');
-                } catch (error) {
-                    console.error('Error deleting entry:', error);
-                    alert(`Error: ${error.message}`);
-                }
+        // Simple alert function replacement
+        function showSimpleAlert(message, type) {
+            // Remove any existing alerts
+            const existingAlert = document.querySelector('.password-alert');
+            if (existingAlert) existingAlert.remove();
+            
+            // Create alert element
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `password-alert alert alert-${type} mt-3`;
+            alertDiv.textContent = message;
+            
+            // Insert after the form
+            changePasswordForm.parentNode.insertBefore(alertDiv, changePasswordForm.nextSibling);
+            
+            // Auto-dismiss after 5 seconds
+            if (type !== 'danger') {
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 5000);
             }
         }
 
-        async function deleteMealPlan(mealPlanId) {
-            if (confirm('Are you sure you want to delete this saved meal?')) {
-                // Find the card and show loading state
-                const mealCard = document.querySelector(`[data-meal-plan-id="${mealPlanId}"]`);
-                if (!mealCard) return;
-
-                // Save original content and replace with loading indicator
-                const originalContent = mealCard.innerHTML;
-                mealCard.innerHTML = `
-                    <div class="d-flex justify-content-center align-items-center h-100 p-5">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Deleting...</span>
-                        </div>
-                        <span class="ms-3">Deleting...</span>
-                    </div>
-                `;
-
-                try {
-                    const response = await fetch(`/api/meal-plans/${mealPlanId}`, { method: 'DELETE' });
-
-                    if (!response.ok) {
-                        // If error, restore original content
-                        mealCard.innerHTML = originalContent;
-                        throw new Error('Failed to delete meal plan.');
-                    }
-
-                    // On success, fade out the card and then reload all meal plans
-                    mealCard.style.transition = 'opacity 0.5s ease';
-                    mealCard.style.opacity = '0';
-
-                    // Wait for fade animation to complete
-                    setTimeout(async () => {
-                        // Reload all meal plans
-                        await loadSavedMealPlans();
-                    }, 500);
-
-                } catch(error) {
-                    console.error('Error deleting meal plan:', error);
-                    alert('Error: ' + error.message);
-                }
-            }
-        }
-
-        async function loadCalorieEntries() {
-            try {
-                const response = await fetch('/api/calories');
-                if (!response.ok) throw new Error('Failed to fetch calorie entries.');
-                const entries = await response.json();
-                const listElement = document.getElementById('loggedMealsList');
-                if (!listElement) return;
-                listElement.innerHTML = ''; // Clear current list
-                if (entries.length === 0) {
-                    listElement.innerHTML = '<li class="list-group-item">No meals logged yet.</li>';
-                    return;
-                }
-                entries.forEach(entry => {
-                    const listItem = document.createElement('li');
-                    listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-                    listItem.setAttribute('data-calorie-id', entry._id); // Use specific data attribute
-                    const mealDate = new Date(entry.date).toLocaleString();
-                    listItem.innerHTML = `
-                        <div>
-                            <strong>${entry.foodItem}</strong> - ${entry.calories} kcal
-                            <br>
-                            <small class="text-muted">${mealDate}</small>
-                        </div>
-                        <button class="btn btn-sm btn-outline-danger delete-calorie-btn">Delete</button>
-                    `;
-                    listElement.appendChild(listItem);
-                });
-            } catch (error) {
-                console.error('Error loading calorie entries:', error);
-                const listElement = document.getElementById('loggedMealsList');
-                if (listElement) {
-                    listElement.innerHTML = '<li class="list-group-item text-danger">Could not load meals.</li>';
-                }
-            }
-        }
+    } catch (error) {
+        console.error('Error initializing password update:', error);
+    }
+}
