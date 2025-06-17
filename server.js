@@ -948,23 +948,31 @@ app.get('/api/scheduled-notifications', authMiddleware, async (req, res) => {
 });
 
 app.post('/api/schedule-notification', authMiddleware, async (req, res) => {
-    const { title, message, time } = req.body; // time should be in 'HH:MM' format
+    const { title, message, schedule } = req.body;
     const userId = req.session.user.id;
     const db = client.db('webprog');
     const scheduledNotificationsCollection = db.collection('scheduled_notifications');
+
+    if (!title || !message || !schedule || !schedule.type || !schedule.value) {
+        return res.status(400).send('Invalid request body. Requires title, message, and a schedule object with type and value.');
+    }
 
     try {
         const newNotification = {
             userId: new ObjectId(userId),
             title,
             message,
-            time, // e.g., "14:30"
+            schedule: {
+                type: schedule.type, // 'daily' or 'one-time'
+                // For one-time, convert ISO string back to Date object for MongoDB
+                value: schedule.type === 'one-time' ? new Date(schedule.value) : schedule.value
+            },
             isEnabled: true,
-            lastSentDate: null // To track when the daily notification was last sent
+            lastSentDate: null
         };
         const result = await scheduledNotificationsCollection.insertOne(newNotification);
+        console.log('[DB] Inserted notification:', newNotification);
         
-        // Return the newly created document, including its _id
         res.status(201).json({ ...newNotification, _id: result.insertedId });
     } catch (error) {
         console.error('Error scheduling notification:', error);
@@ -1006,25 +1014,33 @@ app.put('/api/schedule-notification/:id/toggle', authMiddleware, async (req, res
 
 app.put('/api/schedule-notification/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
-    const { title, message, time } = req.body;
+    const { title, message, schedule } = req.body;
     const userId = req.session.user.id;
     const db = client.db('webprog');
     const scheduledNotificationsCollection = db.collection('scheduled_notifications');
 
-    console.log(`[EDIT] Received update for ID: ${id}. New data:`, { title, message, time }); // Enhanced logging
+    console.log(`[EDIT] Received update for ID: ${id}. New data:`, { title, message, schedule }); // Enhanced logging
 
     if (!ObjectId.isValid(id)) {
         return res.status(400).send('Invalid notification ID.');
     }
 
-    if (!title || !message || !time) {
-        return res.status(400).send('Missing required fields: title, message, time.');
+    if (!title || !message || !schedule || !schedule.type || !schedule.value) {
+        return res.status(400).send('Missing required fields: title, message, schedule.');
     }
 
     try {
         const result = await scheduledNotificationsCollection.updateOne(
             { _id: new ObjectId(id), userId: new ObjectId(userId) },
-            { $set: { title, message, time, lastSentDate: null } }
+            { $set: { 
+                title, 
+                message, 
+                schedule: {
+                    type: schedule.type,
+                    value: schedule.type === 'one-time' ? new Date(schedule.value) : schedule.value
+                },
+                lastSentDate: null // Reset lastSentDate on any edit
+            } }
         );
 
         if (result.matchedCount === 0) {
@@ -1075,6 +1091,13 @@ cron.schedule('* * * * *', async () => {
     const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
 
     console.log(`[CRON] Running check at ${currentTime}...`); // Enhanced logging
+    
+    // Set the start of the minute for one-time check
+    const startOfMinute = new Date(now);
+    startOfMinute.setSeconds(0, 0);
+    const endOfMinute = new Date(startOfMinute.getTime() + 60000);
+
+    console.log(`[CRON] Querying for one-time between ${startOfMinute.toISOString()} and ${endOfMinute.toISOString()}`); // Enhanced logging
 
     const db = client.db('webprog');
     const scheduledNotificationsCollection = db.collection('scheduled_notifications');
@@ -1083,11 +1106,19 @@ cron.schedule('* * * * *', async () => {
     
     try {
         const dueNotifications = await scheduledNotificationsCollection.find({
-            time: currentTime,
             isEnabled: true,
             $or: [
-                { lastSentDate: null },
-                { lastSentDate: { $ne: today } }
+                // Find due daily notifications
+                { 
+                    'schedule.type': 'daily', 
+                    'schedule.value': currentTime, 
+                    $or: [ { lastSentDate: null }, { lastSentDate: { $ne: today } } ] 
+                },
+                // Find due one-time notifications (scheduled for the current minute)
+                {
+                    'schedule.type': 'one-time',
+                    'schedule.value': { $gte: startOfMinute, $lt: endOfMinute }
+                }
             ]
         }).toArray();
 
@@ -1119,11 +1150,17 @@ cron.schedule('* * * * *', async () => {
             }
 
             // --- Update Notification Status ---
-            // Update the last sent date regardless of whether push or email was sent, to prevent spamming
-            await scheduledNotificationsCollection.updateOne(
-                { _id: notification._id },
-                { $set: { lastSentDate: today } }
-            );
+            if (notification.schedule.type === 'one-time') {
+                // Delete one-time notifications after they're sent
+                await scheduledNotificationsCollection.deleteOne({ _id: notification._id });
+                console.log(`[CRON] Deleted one-time notification ${notification._id}`);
+            } else {
+                // Update the last sent date for daily notifications
+                await scheduledNotificationsCollection.updateOne(
+                    { _id: notification._id },
+                    { $set: { lastSentDate: today } }
+                );
+            }
         }
     } catch (error) {
         console.error('Error in cron job:', error);

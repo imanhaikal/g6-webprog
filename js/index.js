@@ -1860,41 +1860,45 @@ document.addEventListener('DOMContentLoaded', () => {
             function renderReminders() {
                 if (!remindersList) return;
                 remindersList.innerHTML = '';
-                reminders.sort((a, b) => new Date(a.time) - new Date(b.time));
+                reminders.sort((a, b) => {
+                    const timeA = a.schedule.type === 'daily' ? a.schedule.value : new Date(a.schedule.value);
+                    const timeB = b.schedule.type === 'daily' ? b.schedule.value : new Date(b.schedule.value);
+                    
+                    // Basic sort for now, can be improved
+                    if (timeA < timeB) return -1;
+                    if (timeA > timeB) return 1;
+                    return 0;
+                });
 
-                reminders.forEach((reminder, index) => {
+                reminders.forEach((reminder) => {
                     const listItem = document.createElement('li');
                     listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-
-                    if (reminder.type === 'daily') {
-                        listItem.dataset.id = reminder._id;
-                        const isEnabled = typeof reminder.isEnabled === 'boolean' ? reminder.isEnabled : true;
-                        listItem.innerHTML = `
-                            <div class="reminder-info">
-                                <strong>${reminder.title}</strong> - ${reminder.time}
-                                <div class="text-muted small">${reminder.message || ''}</div>
-                            </div>
-                            <div class="d-flex align-items-center">
-                                <div class="form-check form-switch me-3">
-                                    <input class="form-check-input reminder-toggle-switch" type="checkbox" role="switch" ${isEnabled ? 'checked' : ''}>
-                                </div>
-                                <button class="btn btn-info btn-sm me-2 edit-notification-btn">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-danger btn-sm delete-notification-btn">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>`;
+                    listItem.dataset.id = reminder._id;
+                    const isEnabled = typeof reminder.isEnabled === 'boolean' ? reminder.isEnabled : true;
+                    
+                    let displayTime = '';
+                    if (reminder.schedule.type === 'daily') {
+                        displayTime = `${reminder.schedule.value} (Daily)`;
                     } else {
-                        listItem.dataset.index = index;
-                        listItem.innerHTML = `
-                            <div>
-                                <strong>${reminder.text}</strong> - ${new Date(reminder.time).toLocaleString()}
-                            </div>
-                            <button class="btn btn-danger btn-sm delete-reminder-btn">
-                                <i class="bi bi-trash"></i>
-                            </button>`;
+                        displayTime = new Date(reminder.schedule.value).toLocaleString();
                     }
+
+                    listItem.innerHTML = `
+                        <div class="reminder-info">
+                            <strong>${reminder.title}</strong> - ${displayTime}
+                            <div class="text-muted small">${reminder.message || ''}</div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="form-check form-switch me-3">
+                                <input class="form-check-input reminder-toggle-switch" type="checkbox" role="switch" ${isEnabled ? 'checked' : ''}>
+                            </div>
+                            <button class="btn btn-info btn-sm me-2 edit-notification-btn">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm delete-notification-btn">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>`;
                     remindersList.appendChild(listItem);
                 });
             }
@@ -1931,25 +1935,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const registration = await navigator.serviceWorker.ready;
                 webPushSwitch.checked = !!(await registration.pushManager.getSubscription());
-                inAppReminderSwitch.checked = localStorage.getItem('inAppRemindersEnabled') === 'true';
+                inAppReminderSwitch.checked = localStorage.getItem('inAppRemindersEnabled') !== 'false'; // Default to true
 
-                const localReminders = JSON.parse(localStorage.getItem('reminders')) || [];
                 try {
                     const response = await fetch('/api/scheduled-notifications');
-                    const serverReminders = response.ok ? await response.json() : [];
-                    reminders = [
-                        ...localReminders.map(r => ({ ...r, type: 'custom' })),
-                        ...serverReminders.map(r => ({ ...r, type: 'daily' }))
-                    ];
+                    reminders = response.ok ? await response.json() : [];
                 } catch (e) {
                     console.error('Error fetching server reminders:', e);
-                    reminders = localReminders.map(r => ({ ...r, type: 'custom' }));
+                    reminders = [];
                 }
                 renderReminders();
-                scheduleReminders();
             }
 
             // --- Event Listeners ---
+            
+            // Listen for messages from the Service Worker
+            navigator.serviceWorker.addEventListener('message', event => {
+                if (event.data && event.data.type === 'show-in-app-alert') {
+                    // Check if in-app reminders are enabled before showing alert
+                    if (localStorage.getItem('inAppRemindersEnabled') !== 'false') {
+                        alert(`Reminder: ${event.data.payload.title}\n\n${event.data.payload.body}`);
+                    }
+                }
+            });
+
             webPushSwitch.addEventListener('change', () => webPushSwitch.checked ? subscribeUser() : unsubscribeUser());
             inAppReminderSwitch.addEventListener('change', () => localStorage.setItem('inAppRemindersEnabled', inAppReminderSwitch.checked));
             emailNotificationSwitch.addEventListener('change', async () => {
@@ -1966,39 +1975,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
             reminderForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const title = "Daily Reminder";
+                const title = reminderForm.querySelector('#reminderText').value || "Daily Reminder";
                 const message = reminderForm.querySelector('#reminderText').value;
                 const time = reminderForm.querySelector('#reminderTime').value;
                 if (!message || !time) return;
+                const payload = {
+                    title,
+                    message,
+                    schedule: { type: 'daily', value: time }
+                };
                 try {
                     const response = await fetch('/api/schedule-notification', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ title, message, time })
+                        body: JSON.stringify(payload)
                     });
                     if (response.ok) {
                         const newNotification = await response.json();
-                        reminders.push({ ...newNotification, type: 'daily' });
+                        reminders.push(newNotification);
                         renderReminders();
                         reminderForm.reset();
                     } else { alert('Failed to schedule notification.'); }
                 } catch (error) { console.error(error); }
             });
 
-            customReminderForm.addEventListener('submit', (e) => {
+            customReminderForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const text = customReminderForm.querySelector('#customReminderText').value;
-                const time = customReminderForm.querySelector('#customReminderTime').value;
-                if (!text || !time) return;
-                reminders.push({ text, time, type: 'custom' });
-                saveReminders();
-                renderReminders();
-                scheduleReminders();
-                customReminderForm.reset();
+                const message = customReminderForm.querySelector('#customReminderText').value;
+                const dateTime = customReminderForm.querySelector('#customReminderTime').value;
+                if (!message || !dateTime) return;
+                const payload = {
+                    title: message, // Use message as title for one-time alerts
+                    message,
+                    schedule: { type: 'one-time', value: new Date(dateTime).toISOString() }
+                };
+                try {
+                    const response = await fetch('/api/schedule-notification', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (response.ok) {
+                        const newNotification = await response.json();
+                        reminders.push(newNotification);
+                        renderReminders();
+                        customReminderForm.reset();
+                    } else { alert('Failed to schedule one-time reminder.'); }
+                } catch (error) { console.error(error); }
             });
 
             remindersList.addEventListener('click', async (event) => {
                 const deleteNotificationBtn = event.target.closest('.delete-notification-btn');
-                const deleteReminderBtn = event.target.closest('.delete-reminder-btn');
                 const editNotificationBtn = event.target.closest('.edit-notification-btn');
 
                 if (editNotificationBtn) {
@@ -2007,9 +2032,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     const reminder = reminders.find(r => r._id === notificationId);
 
                     if (reminder) {
+                        // For simplicity, we use the same modal and just show/hide date/time fields
+                        // A more robust solution might use two modals or dynamic form generation
                         document.getElementById('editReminderId').value = reminder._id;
                         document.getElementById('editReminderText').value = reminder.message;
-                        document.getElementById('editReminderTime').value = reminder.time;
+                        
+                        // For now, we only support editing daily reminders' time in this modal
+                        // A future improvement would be a more adaptive modal
+                        document.getElementById('editReminderTime').value = reminder.schedule.type === 'daily' ? reminder.schedule.value : '';
+
                         const modal = new bootstrap.Modal(document.getElementById('editReminderModal'));
                         modal.show();
                     }
@@ -2023,35 +2054,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             renderReminders();
                         } catch (error) { console.error('Error deleting notification:', error); }
                     }
-                } else if (deleteReminderBtn) {
-                    const listItem = deleteReminderBtn.closest('li[data-index]');
-                    const reminderIndex = parseInt(listItem.dataset.index, 10);
-                    if (confirm('Are you sure you want to delete this custom reminder?')) {
-                        reminders.splice(reminderIndex, 1);
-                        saveReminders();
-                        renderReminders();
-                        scheduleReminders();
-                    }
-                }
-            });
-
-            remindersList.addEventListener('change', async (event) => {
-                if (event.target.classList.contains('reminder-toggle-switch')) {
-                    const listItem = event.target.closest('li[data-id]');
-                    const notificationId = listItem.dataset.id;
-                    const isEnabled = event.target.checked;
-                    try {
-                        const response = await fetch(`/api/schedule-notification/${notificationId}/toggle`, {
-                            method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ isEnabled })
-                        });
-                        if (!response.ok) throw new Error('Toggle failed');
-                        const reminder = reminders.find(r => r._id === notificationId);
-                        if (reminder) reminder.isEnabled = isEnabled;
-                    } catch (error) {
-                        console.error('Error toggling notification:', error);
-                        event.target.checked = !isEnabled;
-                    }
                 }
             });
 
@@ -2063,19 +2065,32 @@ document.addEventListener('DOMContentLoaded', () => {
                     const time = document.getElementById('editReminderTime').value;
                     const reminder = reminders.find(r => r._id === id);
                     
-                    const title = reminder ? reminder.title : "Daily Reminder";
+                    if (!reminder) return alert('Could not find original reminder to update.');
+
+                    const payload = {
+                        title: message, // Update title to match message
+                        message,
+                        schedule: { ...reminder.schedule } // Copy original schedule
+                    };
+
+                    // Only update time for daily reminders in this modal
+                    if (payload.schedule.type === 'daily') {
+                        payload.schedule.value = time;
+                    }
 
                     try {
                         const response = await fetch(`/api/schedule-notification/${id}`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ title, message, time })
+                            body: JSON.stringify(payload)
                         });
 
                         if (response.ok) {
-                            if(reminder) {
-                                reminder.message = message;
-                                reminder.time = time;
+                            // Update local state
+                            const updatedReminder = await response.json(); // Assuming server returns updated doc
+                            const index = reminders.findIndex(r => r._id === id);
+                            if (index !== -1) {
+                                 reminders[index] = { ...reminders[index], ...payload };
                             }
                             renderReminders();
                             const modal = bootstrap.Modal.getInstance(document.getElementById('editReminderModal'));

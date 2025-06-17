@@ -1,21 +1,23 @@
 self.addEventListener('push', event => {
-    let data;
-    try {
-        data = event.data.json();
-    } catch (e) {
-        data = {
-            title: 'New Notification',
-            body: event.data.text(),
-        };
-    }
+    const data = event.data.json();
 
-    const options = {
+    const notificationPromise = self.registration.showNotification(data.title, {
         body: data.body,
-        icon: 'img/icons/icon-192x192.png',
-        badge: 'img/icons/icon-96x96.png'
-    };
+        icon: '/img/icons/icon-192x192.png'
+    });
 
-    event.waitUntil(
-        self.registration.showNotification(data.title, options)
-    );
+    // Send a message to the client (the web page) if it's open
+    const messagePromise = self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true
+    }).then(clientList => {
+        if (clientList.length > 0) {
+            clientList[0].postMessage({
+                type: 'show-in-app-alert',
+                payload: data
+            });
+        }
+    });
+
+    event.waitUntil(Promise.all([notificationPromise, messagePromise]));
 }); 
