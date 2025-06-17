@@ -6,7 +6,7 @@
     <title>Profile Management - Health and Fitness Tracker</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="css/index.css">
 </head>
 <body>
     <!-- Include the template header and navigation -->
@@ -18,7 +18,7 @@
                     <div class="card-header-custom" id="nutrition-calorie-calculator">Calorie Calculator</div>
                     <div class="card-body">
                         <p>Add your daily calorie intake. Get total daily calorie intake suggestions based on your BMI. Get meal suggestions with nutritional insights based on suggested daily calorie intakes.</p>
-                        <form class="row g-3 align-items-end mb-3">
+                        <form class="row g-3 align-items-end mb-3" id="calorieForm">
                             <div class="col-md-3">
                                 <label for="foodItem" class="form-label">Food Item/Meal</label>
                                 <input type="text" class="form-control" id="foodItem" placeholder="e.g., Chicken Salad">
@@ -35,52 +35,154 @@
                                 <button type="submit" class="btn btn-primary w-100">Add Intake</button>
                             </div>
                         </form>
-                        <div class="alert alert-success">
+                        <div class="alert alert-success" id="calorie-suggestion-panel">
                             <strong>Suggested Daily Calorie Intake:</strong> 2100 kcal (based on your profile and activity level)
                         </div>
-                        <h6>Meal Suggestions:</h6>
-                        <ul class="list-group">
-                            <li class="list-group-item">Breakfast: Oatmeal with berries (approx. 300 kcal)</li>
-                            <li class="list-group-item">Lunch: Grilled chicken salad (approx. 450 kcal)</li>
+                        <h6>Your Logged Meals:</h6>
+                        <ul class="list-group" id="loggedMealsList">
+                            <!-- Meals will be dynamically loaded here -->
                         </ul>
+                    </div>
+                </div>
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Meal Suggestions</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="mealSearchForm" class="mb-3">
+                            <div class="input-group">
+                                <input type="text" id="mealSearchInput" class="form-control" placeholder="Search for meals (e.g., 'chicken salad')...">
+                                <button class="btn btn-primary" type="submit">Search</button>
+                            </div>
+                        </form>
+                        <div id="mealSuggestionsContainer" class="list-group">
+                            <!-- Meal suggestions will be loaded here -->
+                            <p class="text-muted">Search for a meal to see suggestions.</p>
+                        </div>
                     </div>
                 </div>
                 <div class="card">
                     <div class="card-header-custom" id="nutrition-food-database">Food Database & Meal Plans</div>
                     <div class="card-body">
-                        <div class="input-group mb-3">
-                            <input type="text" class="form-control" placeholder="Search for meal suggestions (e.g., 'low carb pasta')" aria-label="Search food">
-                            <button class="btn btn-outline-secondary" type="button">Search</button>
+                        <h5 class="mb-0">Your Saved Meal Plans</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="savedMealPlansContainer" class="row">
+                            <!-- Saved meal plans will be loaded here -->
                         </div>
-                        <h6>Saved Meal Plans / Favorites:</h6>
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <div class="card h-100">
-                                    <img src="img/salad.jpeg" class="card-img-top" alt="Meal">
-                                    <div class="card-body">
-                                        <h5 class="card-title fs-6">Quick & Healthy Salad</h5>
-                                        <p class="card-text small">A vibrant salad, perfect for lunch.</p>
-                                        <button class="btn btn-sm btn-outline-primary">View Details</button>
-                                    </div>
-                                </div>
+                    </div>
+                    <div class="card-body border-top bg-light">
+                        <h5 class="mb-3 text-success"><i class="bi bi-camera"></i> Add Your Own Meal</h5>
+                        <p class="text-muted small">Fields marked with <span class="text-danger">*</span> are required.</p>
+                        <form id="addCustomMealForm" class="row g-3">
+                            <div class="col-md-6">
+                                <label for="customMealName" class="form-label">Meal Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="customMealName" placeholder="Enter meal name" required>
                             </div>
-                            <div class="col-md-4 mb-3">
-                                <div class="card h-100">
-                                    <img src="img/drink.jpeg" class="card-img-top" alt="Meal">
-                                    <div class="card-body">
-                                        <h5 class="card-title fs-6">Post-Workout Protein Smoothie</h5>
-                                        <p class="card-text small">Packed with protein for recovery.</p>
-                                        <button class="btn btn-sm btn-outline-primary">View Details</button>
-                                    </div>
-                                </div>
+                            <div class="col-md-6">
+                                <label for="customMealCalories" class="form-label">Calories <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="customMealCalories" placeholder="Enter calorie count" required>
                             </div>
-                        </div>
-                        <button class="btn btn-success mt-2"><i class="bi bi-camera"></i> Take Picture of Meal & Save</button>
+                            <div class="col-12">
+                                <label for="customMealPicture" class="form-label">Meal Picture <span class="text-danger">*</span></label>
+                                <input type="file" class="form-control" id="customMealPicture" accept="image/*" required>
+                                <small class="text-muted">Take a picture of your meal or upload an existing photo</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="customMealIngredients" class="form-label">Ingredients (optional)</label>
+                                <textarea class="form-control" id="customMealIngredients" rows="4" placeholder="Enter ingredients here"></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="customMealRecipe" class="form-label">Recipe (optional)</label>
+                                <textarea class="form-control" id="customMealRecipe" rows="4" placeholder="Enter recipe instructions here"></textarea>
+                            </div>
+                            <div class="col-12 mt-4">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="bi bi-save"></i> Save Meal
+                                </button>
+                                <button type="reset" class="btn btn-outline-secondary btn-lg ms-2">
+                                    Clear Form
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
 
-    <script src="js/script.js"></script>
+    <!-- View Meal Detail Modal -->
+    <div class="modal fade" id="viewMealDetailModal" tabindex="-1" aria-labelledby="viewMealDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="mealDetailName">Recipe Details</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <!-- Image Banner -->
+                    <div class="position-relative">
+                        <img id="mealDetailImage" src="" class="w-100" style="height: 200px; object-fit: cover;" alt="Meal Image">
+                        <div class="position-absolute bottom-0 start-0 w-100 p-3" style="background: linear-gradient(transparent, rgba(0,0,0,0.7));">
+                            <h4 class="text-white mb-0" id="mealDetailNameBanner"></h4>
+                                    </div>
+                                </div>
+                    
+                    <!-- Content Sections -->
+                    <div class="p-4">
+                        <!-- Nutrition Card -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="bi bi-bar-chart-fill me-2"></i>Nutrition Facts</h6>
+                            </div>
+                                    <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4 text-center border-end">
+                                        <h3 id="mealDetailCaloriesValue">0</h3>
+                                        <p class="text-muted mb-0">Calories</p>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <p id="mealDetailCalories" class="mb-2">Loading nutritional information...</p>
+                                        <div class="progress mb-2" style="height: 5px;">
+                                            <div class="progress-bar bg-success" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Ingredients Card -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="bi bi-list-ul me-2"></i>Ingredients</h6>
+                            </div>
+                            <div class="card-body">
+                                <p id="mealDetailIngredients" style="white-space: pre-wrap;">Loading ingredients...</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Recipe Card -->
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="bi bi-journal-text me-2"></i>Preparation Instructions</h6>
+                            </div>
+                            <div class="card-body">
+                                <p id="mealDetailRecipe" style="white-space: pre-wrap;">Loading recipe...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-success" id="saveToFavoritesBtn">
+                        <i class="bi bi-bookmark-plus me-1"></i> Save to My Meal Plans
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/index.js"></script>
 </body>
-</html> 
+</html>
