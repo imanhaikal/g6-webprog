@@ -1841,12 +1841,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function initializeNotificationsPage() {
-            // Re-attach event listeners from notifications.js
             const webPushSwitch = document.getElementById('webPushSwitch');
             if (webPushSwitch) {
-                // To avoid attaching multiple listeners, we can replace the element
                 const newSwitch = webPushSwitch.cloneNode(true);
                 webPushSwitch.parentNode.replaceChild(newSwitch, webPushSwitch);
+                
+                // Set initial state of the web-push switch based on current subscription
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.ready.then(async (registration) => {
+                        const subscription = await registration.pushManager.getSubscription();
+                        newSwitch.checked = subscription !== null;
+                    });
+                }
                 
                 newSwitch.addEventListener('change', async () => {
                     if (newSwitch.checked) {

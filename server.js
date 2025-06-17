@@ -80,6 +80,25 @@ async function sendWelcomeEmail(email, name) {
     }
 }
 
+async function sendReminderEmail(email, name, reminder) {
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: `Reminder: ${reminder.title}`,
+        html: `<h1>Hi ${name},</h1>
+               <p>This is a reminder for you:</p>
+               <p><b>${reminder.message}</b></p>
+               <p>Have a great day!</p>`
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log(`Reminder email sent to ${email}`);
+    } catch (error) {
+        console.error('Error sending reminder email:', error);
+    }
+}
+
 const presetTemplates = [
     {
         name: "Full Body Strength",
@@ -970,6 +989,7 @@ cron.schedule('* * * * *', async () => {
     const db = client.db('webprog');
     const scheduledNotificationsCollection = db.collection('scheduled_notifications');
     const subscriptionsCollection = db.collection('subscriptions');
+    const usersCollection = db.collection('users');
     
     const now = new Date();
     const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
@@ -985,6 +1005,10 @@ cron.schedule('* * * * *', async () => {
         }).toArray();
 
         for (const notification of dueNotifications) {
+            // Fetch user for email settings
+            const user = await usersCollection.findOne({ _id: notification.userId });
+
+            // --- Send Push Notification ---
             const userSubscriptions = await subscriptionsCollection.find({ userId: notification.userId }).toArray();
             
             if (userSubscriptions.length > 0) {
@@ -995,14 +1019,20 @@ cron.schedule('* * * * *', async () => {
                 );
 
                 await Promise.all(sendPromises);
-                console.log(`Sent scheduled notification to user ${notification.userId}`);
-
-                // Update the last sent date
-                await scheduledNotificationsCollection.updateOne(
-                    { _id: notification._id },
-                    { $set: { lastSentDate: today } }
-                );
+                console.log(`Sent scheduled push notification to user ${notification.userId}`);
             }
+
+            // --- Send Email Notification ---
+            if (user && user.settings && user.settings.emailNotifications) {
+                await sendReminderEmail(user.email, user.name, notification);
+            }
+
+            // --- Update Notification Status ---
+            // Update the last sent date regardless of whether push or email was sent, to prevent spamming
+            await scheduledNotificationsCollection.updateOne(
+                { _id: notification._id },
+                { $set: { lastSentDate: today } }
+            );
         }
     } catch (error) {
         console.error('Error in cron job:', error);
