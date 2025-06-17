@@ -817,6 +817,57 @@ app.delete('/api/workouts/:id', authMiddleware, async (req, res) => {
     }
 });
 
+//POST /api/weight - log a new weight
+app.post('/api/weight', authMiddleware, async (req, res) => {
+    const { weight } = req.body;
+    if (!weight || isNaN(weight)) {
+      return res.status(400).json({ error: "Invalid weight value" });
+    }
+  
+    const db = client.db('webprog');
+    const userId = new ObjectId(req.session.user.id);
+  
+    try {
+      // 1. Insert into weight_logs
+      const result = await db.collection('weight_logs').insertOne({
+        userId,
+        weight: parseFloat(weight),
+        date: new Date(),
+        createdAt: new Date()
+      });
+  
+      // 2. Update the latest weight in users collection
+      await db.collection('users').updateOne(
+        { _id: userId },
+        { $set: { weight: parseFloat(weight) } }
+      );
+  
+      res.status(201).json({ message: "Weight logged and profile updated", id: result.insertedId });
+    } catch (error) {
+      console.error("Error logging weight:", error);
+      res.status(500).json({ error: "Failed to log weight" });
+    }
+  });
+  
+
+  // GET weight logs
+  app.get('/api/weight', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    try {
+      const weightLogs = await db.collection('weight_logs')
+        .find({ userId: new ObjectId(req.session.user.id) })
+        .sort({ date: 1 }) // oldest to newest
+        .toArray();
+  
+      res.json(weightLogs);
+    } catch (error) {
+      console.error("Error fetching weight logs:", error);
+      res.status(500).json({ error: "Failed to fetch weight data" });
+    }
+  });
+  
+  
+
 // --- Steps ---
 // POST /api/steps - Log a new steps entry
 app.post('/api/steps', authMiddleware, async (req, res) => {
@@ -927,11 +978,41 @@ app.delete('/api/steps/:id', authMiddleware, async (req, res) => {
     }
 });
 
+// --- Progress Tracking ---
+
+app.get('/api/progress/activity-compare/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const collection = client.db("webprog").collection("activities");
+
+    const now = new Date();
+    const startDate = new Date();
+    startDate.setDate(now.getDate() - 13);
+
+    const activities = await collection.find({
+      userId: new ObjectId(userId),  
+      date: { $gte: startDate }
+    }).toArray();
+
+    res.json(activities);
+  } catch (err) {
+    console.error("Error fetching weekly activities:", err);
+    res.status(500).json({ error: "Failed to load activity data" });
+  }
+});
+
 // --- Config ---
 // Endpoint to provide the Mapbox token to the client
 app.get('/api/mapbox-token', authMiddleware, (req, res) => {
     res.json({ token: "pk.eyJ1IjoiaW1hbmhhaWthbDA0IiwiYSI6ImNtYndzcDR4dDE0bW8ycnB0a3B0bzYwODAifQ.sYAJFD1CEceNAKrlerr-lg" });
 });
+
+// dynamis user fetch
+app.get('/api/session-user', authMiddleware, (req, res) => {
+    res.json({ userId: req.session.user.id });
+  });
+  
 
 // --- Profile Management ---
 // GET /api/profile - Fetch user profile data
@@ -1106,18 +1187,66 @@ app.put('/api/profile/settings', authMiddleware, async (req, res) => {
     const db = client.db('webprog');
 
     try {
+        const updateFields = {};
+
+        if (name !== undefined) updateFields.name = name;
+        if (age !== undefined) updateFields.age = parseInt(age, 10);
+        if (weight !== undefined) updateFields.weight = parseFloat(weight);
+        if (height !== undefined) updateFields.height = parseInt(height, 10);
+        if (goals !== undefined) updateFields.goals = goals;
+        if (goalWeight !== undefined) updateFields.goalWeight = parseFloat(goalWeight);
+
         const result = await db.collection('users').updateOne(
             { _id: new ObjectId(req.session.user.id) },
             { 
                 $set: {
                     'settings.emailNotifications': emailNotifications
                 }
-            }
+            },
+            { $set: updateFields }
         );
+
         if (result.matchedCount === 0) {
             return res.status(404).send('User not found.');
         }
         res.json({ message: 'Settings updated successfully.' });
+
+        res.json({ message: 'Profile updated successfully.' });
+    } catch (error) {
+        console.error('Error updating settings:', error);
+        res.status(500).send('Failed to update settings.');
+    }
+});
+app.put('/api/profile', authMiddleware, async (req, res) => {
+    const { name, age, weight, height, goals, goalWeight } = req.body;
+    const db = client.db('webprog');
+
+    try {
+        const updateFields = {};
+
+        if (name !== undefined) updateFields.name = name;
+        if (age !== undefined) updateFields.age = parseInt(age, 10);
+        if (weight !== undefined) updateFields.weight = parseFloat(weight);
+        if (height !== undefined) updateFields.height = parseInt(height, 10);
+        if (goals !== undefined) updateFields.goals = goals;
+        if (goalWeight !== undefined) updateFields.goalWeight = parseFloat(goalWeight);
+
+        const result = await db.collection('users').updateOne(
+            { _id: new ObjectId(req.session.user.id) },
+            { 
+                $set: {
+                    'settings.emailNotifications': emailNotifications
+                }
+            },
+            { $set: updateFields }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).send('User not found.');
+        }
+        res.json({ message: 'Settings updated successfully.' });
+
+        res.json({ message: 'Profile updated successfully.' });
     } catch (error) {
         console.error('Error updating settings:', error);
         res.status(500).send('Failed to update settings.');
@@ -1816,6 +1945,10 @@ app.put('/api/update-password', authMiddleware, async (req, res) => {
         res.status(500).json({ error: 'Server error during password update' });
     }
 });
+
+
+
+  
 
 // --- Static Files ---
 // This must come AFTER the routes
