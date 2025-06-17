@@ -2,18 +2,45 @@ const express = require('express');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const path = require('path');
+const fs = require('fs'); // Require the file system module
 const bcrypt = require('bcrypt');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const webPush = require('web-push');
 const nodemailer = require('nodemailer');
 const cron = require('node-cron');
+const multer = require('multer'); // Require multer
+const axios = require('axios'); // For making HTTP requests to external APIs
 
 const app = express();
 const port = 3000;
 
 // Use the environment variable for the connection string
 const uri = process.env.MONGO_URI;
+
+// --- Multer Setup for File Uploads ---
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    let uploadDir = 'profile_pics';
+
+    // Check if this is a meal picture upload
+    if (file.fieldname === 'mealPicture') {
+      uploadDir = 'meal_pics';
+    }
+
+    const uploadPath = path.join(__dirname, `uploads/${uploadDir}`);
+    // Create the directory if it doesn't exist
+    fs.mkdirSync(uploadPath, { recursive: true });
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    // Create a unique filename to avoid conflicts
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage: storage });
 
 // Middleware for parsing form data
 app.use(express.json());
@@ -330,6 +357,15 @@ app.get('/logout', (req, res) => {
         }
         res.redirect('/landing.html');
     });
+});
+
+// Session status endpoint
+app.get('/api/session-status', (req, res) => {
+    if (req.session.user && req.session.user.id) {
+        res.status(200).json({ isLoggedIn: true });
+    } else {
+        res.status(401).json({ isLoggedIn: false });
+    }
 });
 
 // Log activity route
@@ -917,27 +953,34 @@ app.get('/api/profile', authMiddleware, async (req, res) => {
 });
 
 // PUT /api/profile - Update user profile data
-app.put('/api/profile', authMiddleware, async (req, res) => {
-    const { name, age, weight, height, goals } = req.body;
+app.put('/api/profile', authMiddleware, upload.single('profilePicture'), async (req, res) => {
+    const { name, age, weight, height, goals, gender } = req.body;
     const db = client.db('webprog');
 
-    try {
-        const result = await db.collection('users').updateOne(
-            { _id: new ObjectId(req.session.user.id) },
-            { 
-                $set: {
+    let updateData = {
                     name: name,
                     age: parseInt(age, 10),
                     weight: parseFloat(weight),
                     height: parseInt(height, 10),
-                    goals: goals
-                }
-            }
+        goals: goals,
+        gender: gender
+    };
+
+    // If a new file was uploaded, add its path to the update data
+    if (req.file) {
+        // We store a web-accessible path, not the full system path
+        updateData.profilePictureUrl = `/uploads/profile_pics/${req.file.filename}`;
+    }
+
+    try {
+        const result = await db.collection('users').updateOne(
+            { _id: new ObjectId(req.session.user.id) },
+            { $set: updateData }
         );
         if (result.matchedCount === 0) {
             return res.status(404).send('User not found.');
         }
-        res.json({ message: 'Profile updated successfully.' });
+        res.json({ message: 'Profile updated successfully.', newImageUrl: updateData.profilePictureUrl });
     } catch (error) {
         console.error('Error updating profile:', error);
         res.status(500).send('Failed to update profile.');
@@ -1480,8 +1523,304 @@ app.delete('/api/account', authMiddleware, async (req, res) => {
     }
 });
 
+// --- Nutrition ---
+// POST /api/calories - Log a new calorie entry
+app.post('/api/calories', authMiddleware, async (req, res) => {
+    const { foodItem, caloriesIntake, mealDate } = req.body;
+    const db = client.db('webprog');
+
+    if (!foodItem || !caloriesIntake || !mealDate) {
+        return res.status(400).send('Missing required fields.');
+    }
+
+    try {
+        await db.collection('calories').insertOne({
+            userId: new ObjectId(req.session.user.id),
+            foodItem: foodItem,
+            calories: parseInt(caloriesIntake, 10),
+            date: new Date(mealDate),
+            createdAt: new Date()
+        });
+        res.status(201).json({ message: 'Calorie intake logged successfully.' });
+    } catch (error) {
+        console.error('Error logging calorie intake:', error);
+        res.status(500).send('Failed to log calorie intake.');
+    }
+});
+
+// GET /api/calories - Get all calorie entries for the user
+app.get('/api/calories', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    try {
+        const entries = await db.collection('calories')
+            .find({ userId: new ObjectId(req.session.user.id) })
+            .sort({ date: -1 })
+            .toArray();
+        res.json(entries);
+    } catch (error) {
+        console.error('Error fetching calorie entries:', error);
+        res.status(500).send('Failed to fetch calorie entries.');
+    }
+});
+
+// DELETE /api/calories/:id - Delete a calorie entry
+app.delete('/api/calories/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).send('Invalid entry ID.');
+    }
+    const db = client.db('webprog');
+    try {
+        const result = await db.collection('calories').deleteOne({
+            _id: new ObjectId(id),
+            userId: new ObjectId(req.session.user.id)
+        });
+        if (result.deletedCount === 0) {
+            return res.status(404).send('Entry not found or user not authorized.');
+        }
+        res.status(200).json({ message: 'Entry deleted successfully.' });
+    } catch (error) {
+        console.error('Error deleting calorie entry:', error);
+        res.status(500).send('Failed to delete entry.');
+    }
+});
+
+// GET /api/calorie-suggestion - Calculate and return suggested daily calories
+app.get('/api/calorie-suggestion', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    try {
+        const user = await db.collection('users').findOne({ _id: new ObjectId(req.session.user.id) });
+
+        if (!user || !user.age || !user.gender || !user.weight || !user.height) {
+            return res.status(400).json({ message: "Please complete your profile (age, gender, weight, and height) to get a calorie suggestion." });
+        }
+
+        // 1. Calculate BMR using Mifflin-St Jeor equation
+        let bmr;
+        if (user.gender.toLowerCase() === 'male') {
+            bmr = 10 * user.weight + 6.25 * user.height - 5 * user.age + 5;
+        } else { // female
+            bmr = 10 * user.weight + 6.25 * user.height - 5 * user.age - 161;
+        }
+
+        // 2. Determine activity level
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+        const recentActivities = await db.collection('activities').find({
+            userId: new ObjectId(req.session.user.id),
+            date: { $gte: oneWeekAgo }
+        }).toArray();
+
+        let activityFactor = 1.2; // Default to sedentary
+        let message = "Calorie Intake calculated! Please update your activities in the Fitness section for more accurate results";
+
+        if (recentActivities.length > 0) {
+            const activeDays = new Set(recentActivities.map(a => new Date(a.date).toDateString())).size;
+
+            if (activeDays >= 6) {
+                activityFactor = 1.725; // Very active
+            } else if (activeDays >= 3) {
+                activityFactor = 1.55; // Moderately active
+            } else if (activeDays >= 1) {
+                activityFactor = 1.375; // Lightly active
+            }
+            message = "Suggestion based on your profile and recent activity.";
+        }
+
+        // 3. Calculate TDEE (Total Daily Energy Expenditure)
+        const tdee = Math.round(bmr * activityFactor);
+
+        res.json({ suggestedCalories: tdee, message: message });
+
+    } catch (error) {
+        console.error('Error calculating calorie suggestion:', error);
+        res.status(500).send('Failed to calculate calorie suggestion.');
+    }
+});
+
+// --- Meal Plans ---
+
+// GET /api/meal-suggestions - Search for meal suggestions from Spoonacular API
+app.get('/api/meal-suggestions', authMiddleware, async (req, res) => {
+    const { q } = req.query;
+    if (!q) {
+        return res.json([]);
+    }
+
+    const apiKey = process.env.SPOONACULAR_API_KEY || '5202bfc35b8d4300b0a151c1791061f9';
+
+    const apiUrl = `https://api.spoonacular.com/recipes/complexSearch`;
+
+    try {
+        const response = await axios.get(apiUrl, {
+            params: {
+                query: q,
+                apiKey: apiKey,
+                number: 5, // Get up to 5 results
+                addRecipeInformation: true, // Get detailed info
+                fillIngredients: true, // Get ingredient info
+                instructionsRequired: true, // Ensure we get cooking instructions
+                addRecipeNutrition: true, // Get complete nutrition info
+            }
+        });
+
+        // Map the response to the format our frontend expects
+        const results = response.data.results.map(meal => {
+            // Extract calories from nutrition data
+            const calories = meal.nutrition?.nutrients.find(n => n.name === 'Calories')?.amount || 'N/A';
+
+            // Get ingredients list
+            const ingredients = meal.extendedIngredients?.map(i => i.original).join(', ') || 'Not available';
+
+            // Get recipe instructions (combining all steps)
+            let recipe = 'Not available';
+            if (meal.analyzedInstructions && meal.analyzedInstructions.length > 0) {
+                const steps = meal.analyzedInstructions[0].steps;
+                if (steps && steps.length > 0) {
+                    recipe = steps.map(s => `${s.number}. ${s.step}`).join('\n');
+                }
+            }
+
+            return {
+                id: meal.id,
+                name: meal.title,
+                calories: calories,
+                imageUrl: meal.image,
+                ingredients: ingredients,
+                recipe: recipe
+            };
+        });
+
+        res.json(results);
+    } catch (error) {
+        console.error('Error fetching from Spoonacular API:', error.response ? error.response.data : error.message);
+        res.status(500).json({ message: 'Failed to fetch meal suggestions.' });
+    }
+});
+
+// POST /api/meal-plans - Save a meal plan (suggestion or custom)
+app.post('/api/meal-plans', authMiddleware, upload.single('mealPicture'), async (req, res) => {
+    const db = client.db('webprog');
+    const { name, calories, ingredients, recipe, isCustom, imageUrl } = req.body;
+
+    let newMealPlan = {
+        userId: new ObjectId(req.session.user.id),
+        name,
+        calories: parseInt(calories, 10),
+        ingredients,
+        recipe,
+        isCustom: isCustom === 'true',
+        createdAt: new Date()
+    };
+
+    if (req.file) { // For custom meals uploaded by user
+        newMealPlan.imageUrl = `/uploads/meal_pics/${req.file.filename}`;
+    } else if (imageUrl) { // For saving a suggestion
+        newMealPlan.imageUrl = imageUrl;
+    }
+
+    try {
+        const result = await db.collection('meal_plans').insertOne(newMealPlan);
+        res.status(201).json({ message: 'Meal plan saved successfully!', insertedId: result.insertedId });
+    } catch (error) {
+        console.error('Error saving meal plan:', error);
+        res.status(500).send('Failed to save meal plan.');
+    }
+});
+
+// GET /api/meal-plans - Get user's saved meal plans
+app.get('/api/meal-plans', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    try {
+        const mealPlans = await db.collection('meal_plans').find({ userId: new ObjectId(req.session.user.id) }).sort({ createdAt: -1 }).toArray();
+        res.json(mealPlans);
+    } catch (error) {
+        console.error('Error fetching meal plans:', error);
+        res.status(500).send('Failed to fetch meal plans.');
+    }
+});
+
+// DELETE /api/meal-plans/:id - Delete a saved meal plan
+app.delete('/api/meal-plans/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ message: 'Invalid meal plan ID format.' });
+    }
+
+    const db = client.db('webprog');
+    try {
+        // First check if the meal plan exists and belongs to the user
+        const mealPlan = await db.collection('meal_plans').findOne({
+            _id: new ObjectId(id),
+            userId: new ObjectId(req.session.user.id)
+        });
+
+        if (!mealPlan) {
+            return res.status(404).json({ message: 'Meal plan not found or you do not have permission to delete it.' });
+        }
+
+        // If it's a custom meal with an image, we could delete the image file here
+        // (Not implementing file deletion for now to avoid complexity)
+
+        // Now delete the meal plan
+        const result = await db.collection('meal_plans').deleteOne({
+            _id: new ObjectId(id),
+            userId: new ObjectId(req.session.user.id)
+        });
+
+        if (result.deletedCount === 0) {
+            return res.status(500).json({ message: 'Failed to delete the meal plan. Please try again.' });
+        }
+
+        res.status(200).json({
+            message: 'Meal plan deleted successfully.',
+            deletedId: id
+        });
+    } catch (error) {
+        console.error('Error deleting meal plan:', error);
+        res.status(500).json({ message: 'An error occurred while deleting the meal plan.' });
+    }
+});
+
+// PUT /api/update-password - Update user password
+app.put('/api/update-password', authMiddleware, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        const userId = req.session.user.id;
+        const db = client.db('webprog');
+
+        // Basic validation
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: 'Both passwords are required' });
+        }
+
+        // Get user
+        const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) return res.status(401).json({ error: 'Current password is incorrect' });
+
+        // Update password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await db.collection('users').updateOne(
+            { _id: new ObjectId(userId) },
+            { $set: { password: hashedPassword } }
+        );
+
+        res.json({ success: true, message: 'Password updated successfully' });
+    } catch (error) {
+        console.error('Password update error:', error);
+        res.status(500).json({ error: 'Server error during password update' });
+    }
+});
+
 // --- Static Files ---
 // This must come AFTER the routes
+// Make the 'uploads' directory statically served
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname)));
 
 app.listen(port, () => {
