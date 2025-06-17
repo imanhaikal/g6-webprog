@@ -818,6 +818,101 @@ app.get('/profile', authMiddleware, async (req, res) => {
     }
 });
 
+app.get('/today-calories', authMiddleware, async (req, res) => {
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const activitiesCollection = db.collection('activities');
+
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const aggregation = [
+            {
+                $match: {
+                    userId: new ObjectId(userId),
+                    date: {
+                        $gte: today,
+                        $lt: tomorrow
+                    },
+                    calories: { $exists: true, $ne: null }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalCalories: { $sum: "$calories" }
+                }
+            }
+        ];
+
+        const result = await activitiesCollection.aggregate(aggregation).toArray();
+        const totalCalories = result.length > 0 ? result[0].totalCalories : 0;
+
+        res.json({ totalCalories });
+    } catch (error) {
+        console.error('Error fetching today\'s calories:', error);
+        res.status(500).send('Failed to fetch today\'s calories.');
+    }
+});
+
+app.get('/weekly-activity', authMiddleware, async (req, res) => {
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    try {
+        const stepsData = await db.collection('steps').aggregate([
+            { $match: { userId: new ObjectId(userId), date: { $gte: sevenDaysAgo } } },
+            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } }, total: { $sum: "$steps" } } },
+            { $sort: { _id: 1 } }
+        ]).toArray();
+
+        const caloriesData = await db.collection('activities').aggregate([
+            { $match: { userId: new ObjectId(userId), date: { $gte: sevenDaysAgo }, calories: { $exists: true } } },
+            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } }, total: { $sum: "$calories" } } },
+            { $sort: { _id: 1 } }
+        ]).toArray();
+
+        const workoutsData = await db.collection('workouts').aggregate([
+            { $match: { userId: new ObjectId(userId), date: { $gte: sevenDaysAgo } } },
+            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } }, total: { $sum: "$duration" } } },
+            { $sort: { _id: 1 } }
+        ]).toArray();
+
+        // Helper to format data
+        const formatData = (data, days) => {
+            const dataMap = new Map(data.map(d => [d._id, d.total]));
+            return days.map(day => dataMap.get(day) || 0);
+        };
+
+        const labels = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            labels.push(d.toISOString().split('T')[0]);
+        }
+        
+        const dayLabels = labels.map(label => new Date(label).toLocaleDateString('en-US', { weekday: 'short' }));
+
+        res.json({
+            labels: dayLabels,
+            steps: formatData(stepsData, labels),
+            calories: formatData(caloriesData, labels),
+            workouts: formatData(workoutsData, labels)
+        });
+
+    } catch (error) {
+        console.error('Error fetching weekly activity data:', error);
+        res.status(500).send('Failed to fetch weekly activity data');
+    }
+});
+
 // --- Static Files ---
 // This must come AFTER the routes
 app.use(express.static(path.join(__dirname)));

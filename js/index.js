@@ -181,7 +181,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         // Initialize weekly activity chart if we're on the dashboard page
                         if (page === 'dashboard') {
-                            initializeDashboardCharts();
+                            const script = document.createElement('script');
+                            script.src = 'js/dashboard-charts.js';
+                            script.onload = () => {
+                                initializeDashboardCharts();
+                            };
+                            document.body.appendChild(script);
                         }
 
                         // Initialize fitness tracker if on fitness page
@@ -228,132 +233,65 @@ document.addEventListener('DOMContentLoaded', () => {
         function initializeDashboardCharts() {
             console.log('Initializing dashboard charts...');
             
-            // Fetch today's steps
+            // Fetch today's steps and calories
             fetchTodaySteps();
+            fetchTodayCalories();
 
-            // Check if the weekly activity chart exists
+            // Handle the weekly activity chart
             const weeklyChartCanvas = document.getElementById('weeklyActivityChart');
-            if (!weeklyChartCanvas) {
-                console.error('Weekly activity chart canvas not found');
-                return;
-            }
+            if (weeklyChartCanvas) {
+                try {
+                    // Initialize the chart with empty data
+                    initWeeklyActivityChart();
+                    
+                    // Fetch the data to populate it
+                    fetchWeeklyActivity();
             
-            console.log('Weekly activity chart canvas found, initializing...');
-            
-            // Chart data
-            const chartData = {
-                steps: {
-                    label: 'Steps',
-                    data: [8421, 10254, 7592, 9873, 6420, 8532, 12045],
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                },
-                calories: {
-                    label: 'Calories Burned',
-                    data: [1850, 2102, 1745, 2231, 1654, 1932, 2345],
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                },
-                workouts: {
-                    label: 'Workout Minutes',
-                    data: [45, 60, 30, 75, 0, 45, 90],
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                }
-            };
-            
-            // Initialize the chart
-            try {
-                const ctx = weeklyChartCanvas.getContext('2d');
-                
-                // Create the chart
-                const weeklyActivityChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-                        datasets: [{
-                            label: 'Steps',
-                            data: chartData.steps.data,
-                            backgroundColor: chartData.steps.backgroundColor,
-                            borderColor: chartData.steps.borderColor,
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                grid: {
-                                    display: true,
-                                    color: 'rgba(0, 0, 0, 0.1)'
-                                },
-                                ticks: {
-                                    color: '#666',
-                                    font: {
-                                        size: 12
-                                    },
-                                    callback: function(value) {
-                                        return value.toLocaleString();
-                                    }
-                                }
-                            },
-                            x: {
-                                grid: {
-                                    display: false
-                                },
-                                ticks: {
-                                    color: '#666',
-                                    font: {
-                                        size: 12
-                                    }
-                                }
-                            }
-                        },
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
-                            tooltip: {
-                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                                callbacks: {
-                                    label: function(context) {
-                                        let label = context.dataset.label || '';
-                                        if (label) {
-                                            label += ': ';
-                                        }
-                                        label += context.parsed.y.toLocaleString();
-                                        return label;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-                
-                console.log('Weekly activity chart initialized');
-                
-                // Add event listeners to the metric buttons
-                document.querySelectorAll('.btn-group[role="group"] .btn').forEach(button => {
-                    button.addEventListener('click', function() {
-                        const metric = this.getAttribute('data-metric');
-                        console.log('Metric button clicked:', metric);
-                        
-                        // Remove active class from all buttons
-                        document.querySelectorAll('.btn-group[role="group"] .btn').forEach(btn => {
-                            btn.classList.remove('active');
+                    // Add event listeners for the metric buttons to update the chart
+                    document.querySelectorAll('.btn-group[role="group"] .btn').forEach(button => {
+                        button.addEventListener('click', function() {
+                            // Update all buttons to be inactive/outline style
+                            document.querySelectorAll('.btn-group[role="group"] .btn').forEach(btn => {
+                                btn.classList.remove('active', 'btn-primary');
+                                btn.classList.add('btn-outline-primary');
+                            });
+                            
+                            // Make the clicked button active/solid style
+                            this.classList.add('active', 'btn-primary');
+                            this.classList.remove('btn-outline-primary');
+
+                            updateChart(this.getAttribute('data-metric'));
                         });
-                        
-                        // Add active class to clicked button
-                        this.classList.add('active');
-                        
-                        // Update chart based on selected metric
-                        updateWeeklyChart(weeklyActivityChart, metric, chartData);
                     });
-                });
+                } catch (error) {
+                    console.error('Error setting up weekly activity chart:', error);
+                }
+            }
+        }
+
+        async function fetchTodayCalories() {
+            try {
+                const response = await fetch('/today-calories');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch today\'s calories');
+                }
+                const data = await response.json();
+                const totalCalories = data.totalCalories;
+                const goal = 2200; // Assuming a static goal for now
+                const percentage = Math.min((totalCalories / goal) * 100, 100);
+
+                const caloriesCountElement = document.getElementById('today-calories-count');
+                if (caloriesCountElement) {
+                    caloriesCountElement.firstChild.textContent = totalCalories.toLocaleString() + ' ';
+                }
+
+                const progressBarElement = document.getElementById('calories-progress-bar');
+                if (progressBarElement) {
+                    progressBarElement.style.width = `${percentage}%`;
+                    progressBarElement.setAttribute('aria-valuenow', percentage);
+                }
             } catch (error) {
-                console.error('Error creating weekly activity chart:', error);
+                console.error("Error fetching today's calories:", error);
             }
         }
 
@@ -1867,5 +1805,32 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 console.error('Error calculating steps:', error);
                 alert(`An error occurred: ${error.message}`);
+            }
+        }
+
+        async function fetchWeeklyActivity() {
+            try {
+                const response = await fetch('/weekly-activity');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch weekly activity data');
+                }
+                const data = await response.json();
+                
+                // Update the chart data
+                const weeklyChart = window.weeklyActivityChart;
+                if (weeklyChart) {
+                    weeklyChart.data.labels = data.labels;
+                    // Store all data sets and update the visible one
+                    window.chartData.steps.data = data.steps;
+                    window.chartData.calories.data = data.calories;
+                    window.chartData.workouts.data = data.workouts;
+
+                    // Get the currently active metric
+                    const activeMetric = document.querySelector('.btn-group[role="group"] .btn.active')?.dataset.metric || 'steps';
+                    updateChart(activeMetric); // This function is in dashboard-charts.js
+                }
+
+            } catch (error) {
+                console.error("Error fetching weekly activity:", error);
             }
         }
