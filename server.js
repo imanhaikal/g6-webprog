@@ -630,7 +630,7 @@ app.post('/api/workouts', authMiddleware, async (req, res) => {
         const newWorkout = {
             userId: new ObjectId(req.session.user.id),
             duration: parseInt(duration, 10),
-            calories: calories ? parseInt(calories, 10) : null,
+            calories: calories ? parseInt(calories, 10) : 0,
             date: new Date(`${date}T${time}`),
             notes,
             createdAt: new Date()
@@ -787,7 +787,7 @@ app.put('/api/workouts/:id', authMiddleware, async (req, res) => {
             { _id: new ObjectId(id), userId: new ObjectId(req.session.user.id) },
             { $set: {
                 duration: parseInt(duration, 10),
-                calories: calories ? parseInt(calories, 10) : null,
+                calories: calories ? parseInt(calories, 10) : 0,
                 date: new Date(`${date}T${time}`),
                 notes
             }}

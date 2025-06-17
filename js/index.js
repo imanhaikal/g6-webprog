@@ -698,7 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 date: formData.get('date'),
                 time: formData.get('time'),
                 notes: formData.get('notes'),
-                calories: formData.get('calories'),
+                calories: formData.get('calories') || 0, // Set to 0 if empty or undefined
             };
 
             if (logType === 'template') {
