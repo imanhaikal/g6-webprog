@@ -64,14 +64,14 @@ const client = new MongoClient(uri, {
 });
 
 // VAPID keys should be stored in environment variables
-if (!'BB1ps-PnF3YWgbDclyhlX7T-IszmPZGMTYfydgEF6iOuuY3Ke7hf2YNqbzikNOR_Yg9DUzEGtRhcoX49tSCrqeE' || !'f35MWxp6k-vvW5jkGMv5Sb85qUySerb0NYQtnxd-BxI') {
+if (! 'BDAIYPN9C6J2QI0Pv6TQk4cM894_wKjTTcvfGZM23nNz0vqHip75PhEa0_I4umV7McPkR4lvgJvKQNo7BDAdb3U' || ! 'RRBnMRhaa7k3Dd6lFUFklcJphav9xrOEk2htu_QMh4Q') {
     console.log("You must set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in your .env file. You can use the `npm run vapi` command to generate them.");
     process.exit(1);
 }
 
 const vapidKeys = {
-    publicKey: 'BB1ps-PnF3YWgbDclyhlX7T-IszmPZGMTYfydgEF6iOuuY3Ke7hf2YNqbzikNOR_Yg9DUzEGtRhcoX49tSCrqeE',
-    privateKey: 'f35MWxp6k-vvW5jkGMv5Sb85qUySerb0NYQtnxd-BxI'
+    publicKey:  'BDAIYPN9C6J2QI0Pv6TQk4cM894_wKjTTcvfGZM23nNz0vqHip75PhEa0_I4umV7McPkR4lvgJvKQNo7BDAdb3U',
+    privateKey:  'RRBnMRhaa7k3Dd6lFUFklcJphav9xrOEk2htu_QMh4Q'
 };
 
 webPush.setVapidDetails(
@@ -91,7 +91,7 @@ const transporter = nodemailer.createTransport({
 
 async function sendWelcomeEmail(email, name) {
     const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: 'healthtrackerg6@gmail.com',
         to: email,
         subject: 'Welcome to Health and Fitness Tracker!',
         html: `<h1>Welcome, ${name}!</h1>
@@ -109,7 +109,7 @@ async function sendWelcomeEmail(email, name) {
 
 async function sendReminderEmail(email, name, reminder) {
     const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: 'healthtrackerg6@gmail.com',
         to: email,
         subject: `Reminder: ${reminder.title}`,
         html: `<h1>Hi ${name},</h1>
