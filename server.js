@@ -214,6 +214,15 @@ app.get('/logout', (req, res) => {
     });
 });
 
+// Session status endpoint
+app.get('/api/session-status', (req, res) => {
+    if (req.session.user && req.session.user.id) {
+        res.status(200).json({ isLoggedIn: true });
+    } else {
+        res.status(401).json({ isLoggedIn: false });
+    }
+});
+
 // Log activity route
 app.post('/log-activity', authMiddleware, async (req, res) => {
     const {

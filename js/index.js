@@ -261,6 +261,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             initializeProfilePage();
                             initializeAccountDeletion();
                         }
+                        
+                        // Initialize nutrition page
+                        if (page === 'nutrition') {
+                            initializeNutritionPage();
+                        }
                     } else {
                         throw new Error('Content element not found in the loaded page');
                     }
