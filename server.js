@@ -929,6 +929,24 @@ app.put('/api/profile/settings', authMiddleware, async (req, res) => {
 });
 
 // --- Scheduled Notification Routes ---
+
+app.get('/api/scheduled-notifications', authMiddleware, async (req, res) => {
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const scheduledNotificationsCollection = db.collection('scheduled_notifications');
+
+    try {
+        const notifications = await scheduledNotificationsCollection
+            .find({ userId: new ObjectId(userId) })
+            .sort({ time: 1 })
+            .toArray();
+        res.status(200).json(notifications);
+    } catch (error) {
+        console.error('Error fetching scheduled notifications:', error);
+        res.status(500).send('Failed to fetch scheduled notifications.');
+    }
+});
+
 app.post('/api/schedule-notification', authMiddleware, async (req, res) => {
     const { title, message, time } = req.body; // time should be in 'HH:MM' format
     const userId = req.session.user.id;
@@ -941,6 +959,7 @@ app.post('/api/schedule-notification', authMiddleware, async (req, res) => {
             title,
             message,
             time, // e.g., "14:30"
+            isEnabled: true,
             lastSentDate: null // To track when the daily notification was last sent
         };
         const result = await scheduledNotificationsCollection.insertOne(newNotification);
@@ -950,6 +969,72 @@ app.post('/api/schedule-notification', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Error scheduling notification:', error);
         res.status(500).send('Failed to schedule notification.');
+    }
+});
+
+app.put('/api/schedule-notification/:id/toggle', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    const { isEnabled } = req.body;
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const scheduledNotificationsCollection = db.collection('scheduled_notifications');
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).send('Invalid notification ID.');
+    }
+
+    if (typeof isEnabled !== 'boolean') {
+        return res.status(400).send('Invalid isEnabled value.');
+    }
+
+    try {
+        const result = await scheduledNotificationsCollection.updateOne(
+            { _id: new ObjectId(id), userId: new ObjectId(userId) },
+            { $set: { isEnabled: isEnabled } }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).send('Scheduled notification not found or user not authorized.');
+        }
+
+        res.status(200).json({ message: `Notification ${isEnabled ? 'enabled' : 'disabled'} successfully.` });
+    } catch (error) {
+        console.error('Error toggling notification:', error);
+        res.status(500).send('Failed to toggle notification.');
+    }
+});
+
+app.put('/api/schedule-notification/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    const { title, message, time } = req.body;
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const scheduledNotificationsCollection = db.collection('scheduled_notifications');
+
+    console.log(`[EDIT] Received update for ID: ${id}. New data:`, { title, message, time }); // Enhanced logging
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).send('Invalid notification ID.');
+    }
+
+    if (!title || !message || !time) {
+        return res.status(400).send('Missing required fields: title, message, time.');
+    }
+
+    try {
+        const result = await scheduledNotificationsCollection.updateOne(
+            { _id: new ObjectId(id), userId: new ObjectId(userId) },
+            { $set: { title, message, time, lastSentDate: null } }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).send('Scheduled notification not found or user not authorized.');
+        }
+
+        res.status(200).json({ message: 'Notification updated successfully.' });
+    } catch (error) {
+        console.error('Error updating notification:', error);
+        res.status(500).send('Failed to update notification.');
     }
 });
 
@@ -985,24 +1070,30 @@ app.delete('/api/cancel-notification/:id', authMiddleware, async (req, res) => {
 
 // Cron job to send scheduled notifications
 cron.schedule('* * * * *', async () => {
-    console.log('Running cron job to check for scheduled notifications...');
+    const now = new Date();
+    const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+    console.log(`[CRON] Running check at ${currentTime}...`); // Enhanced logging
+
     const db = client.db('webprog');
     const scheduledNotificationsCollection = db.collection('scheduled_notifications');
     const subscriptionsCollection = db.collection('subscriptions');
     const usersCollection = db.collection('users');
     
-    const now = new Date();
-    const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
-    const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-
     try {
         const dueNotifications = await scheduledNotificationsCollection.find({
             time: currentTime,
+            isEnabled: true,
             $or: [
                 { lastSentDate: null },
                 { lastSentDate: { $ne: today } }
             ]
         }).toArray();
+
+        if (dueNotifications.length > 0) {
+            console.log(`[CRON] Found ${dueNotifications.length} due notifications.`, dueNotifications); // Enhanced logging
+        }
 
         for (const notification of dueNotifications) {
             // Fetch user for email settings

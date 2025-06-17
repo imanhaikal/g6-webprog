@@ -315,64 +315,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // This function needs to be defined within the DOMContentLoaded scope
-        const VAPID_PUBLIC_KEY = 'BB1ps-PnF3YWgbDclyhlX7T-IszmPZGMTYfydgEF6iOuuY3Ke7hf2YNqbzikNOR_Yg9DUzEGtRhcoX49tSCrqeE';
-
-        function urlBase64ToUint8Array(base64String) {
-            const padding = '='.repeat((4 - base64String.length % 4) % 4);
-            const base64 = (base64String + padding)
-                .replace(/-/g, '+')
-                .replace(/_/g, '/');
-
-            const rawData = window.atob(base64);
-            const outputArray = new Uint8Array(rawData.length);
-
-            for (let i = 0; i < rawData.length; ++i) {
-                outputArray[i] = rawData.charCodeAt(i);
-            }
-            return outputArray;
-        }
-
-        async function subscribeUser() {
-            if ('serviceWorker' in navigator && 'PushManager' in window) {
-                try {
-                    if (Notification.permission === 'denied') {
-                        alert('You have blocked notifications. To receive them, please enable notifications for this site in your browser settings.');
-                        const webPushSwitch = document.getElementById('webPushSwitch');
-                        if (webPushSwitch) {
-                            webPushSwitch.checked = false;
-                        }
-                        return;
-                    }
-
-                    const registration = await navigator.serviceWorker.register('/sw.js');
-                    const subscription = await registration.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-                    });
-
-                    await fetch('/subscribe', {
-                        method: 'POST',
-                        body: JSON.stringify(subscription),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
-
-                    alert('Successfully subscribed to notifications!');
-
-            } catch (error) {
-                    console.error('Failed to subscribe the user: ', error);
-                    const webPushSwitch = document.getElementById('webPushSwitch');
-                    if (webPushSwitch) {
-                        webPushSwitch.checked = false;
-                    }
-                }
-            } else {
-                alert('Push notifications are not supported in this browser.');
-            }
-        }
-
         function updateWeeklyChart(chart, metric, chartData) {
             // Hide all datasets first
             chart.data.datasets.forEach(dataset => {
@@ -1841,230 +1783,312 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function initializeNotificationsPage() {
+            console.log('Initializing Notifications Page...');
+
+            // --- Element selectors ---
             const webPushSwitch = document.getElementById('webPushSwitch');
-            if (webPushSwitch) {
-                const newSwitch = webPushSwitch.cloneNode(true);
-                webPushSwitch.parentNode.replaceChild(newSwitch, webPushSwitch);
-                
-                // Set initial state of the web-push switch based on current subscription
-                if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.ready.then(async (registration) => {
-                        const subscription = await registration.pushManager.getSubscription();
-                        newSwitch.checked = subscription !== null;
-                    });
-                }
-                
-                newSwitch.addEventListener('change', async () => {
-                    if (newSwitch.checked) {
-                        subscribeUser();
-                    } else {
-                        // Unsubscribe logic
-                        try {
-                            const registration = await navigator.serviceWorker.ready;
-                            const subscription = await registration.pushManager.getSubscription();
-                            if (subscription) {
-                                await subscription.unsubscribe();
-                            }
-                            await fetch('/unsubscribe', { method: 'POST' });
-                            alert('Unsubscribed from push notifications.');
-                        } catch (error) {
-                            console.error('Error unsubscribing:', error);
-                            alert('Failed to unsubscribe.');
-                            newSwitch.checked = true; // Revert switch on failure
-                        }
-                    }
-                });
-            }
-
-            // Re-attach event listeners from notification_reminder.js
             const inAppReminderSwitch = document.getElementById('inAppReminderSwitch');
-            if(inAppReminderSwitch) {
-                // Load saved preference
-                const isEnabled = localStorage.getItem('inAppRemindersEnabled') !== 'false';
-                inAppReminderSwitch.checked = isEnabled;
-
-                inAppReminderSwitch.addEventListener('change', () => {
-                    localStorage.setItem('inAppRemindersEnabled', inAppReminderSwitch.checked);
-                    alert(`In-app reminders ${inAppReminderSwitch.checked ? 'enabled' : 'disabled'}.`);
-                });
-            }
-
             const emailNotificationSwitch = document.getElementById('emailNotificationSwitch');
-            if(emailNotificationSwitch) {
-                // Fetch user settings and set initial state
-                try {
-                    const response = await fetch('/api/profile');
-                    const profile = await response.json();
-                    // Safely access the setting, defaulting to true if it doesn't exist
-                    emailNotificationSwitch.checked = (profile.settings && profile.settings.emailNotifications !== undefined) ? profile.settings.emailNotifications : true;
-                } catch (error) {
-                    console.error('Error fetching profile settings:', error);
-                }
-
-                emailNotificationSwitch.addEventListener('change', async () => {
-                    const isEnabled = emailNotificationSwitch.checked;
-                    try {
-                        const response = await fetch('/api/profile/settings', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ emailNotifications: isEnabled })
-                        });
-                        if (response.ok) {
-                            alert(`Email notifications ${isEnabled ? 'enabled' : 'disabled'}.`);
-                        } else {
-                             throw new Error('Failed to update settings');
-                        }
-                    } catch (error) {
-                        console.error('Error updating email settings:', error);
-                        alert('Failed to update settings.');
-                        emailNotificationSwitch.checked = !isEnabled; // Revert on failure
-                    }
-                });
-            }
-
             const reminderForm = document.getElementById('dailyReminderForm');
             const customReminderForm = document.getElementById('customReminderForm');
             const remindersList = document.getElementById('remindersList');
+            const editReminderForm = document.getElementById('editReminderForm');
 
-            let reminders = JSON.parse(localStorage.getItem('reminders')) || [];
+            // --- State variables ---
+            let reminders = [];
+
+            // --- Functions ---
+            const VAPID_PUBLIC_KEY = 'BB1ps-PnF3YWgbDclyhlX7T-IszmPZGMTYfydgEF6iOuuY3Ke7hf2YNqbzikNOR_Yg9DUzEGtRhcoX49tSCrqeE';
+
+            function urlBase64ToUint8Array(base64String) {
+                const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+                const rawData = window.atob(base64);
+                const outputArray = new Uint8Array(rawData.length);
+                for (let i = 0; i < rawData.length; ++i) {
+                    outputArray[i] = rawData.charCodeAt(i);
+                }
+                return outputArray;
+            }
+
+            async function subscribeUser() {
+                if ('serviceWorker' in navigator && 'PushManager' in window) {
+                    try {
+                        if (Notification.permission === 'denied') {
+                            alert('You have blocked notifications. To receive them, please enable notifications for this site in your browser settings.');
+                            webPushSwitch.checked = false;
+                            return;
+                        }
+
+                        const registration = await navigator.serviceWorker.register('/sw.js');
+                        const subscription = await registration.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                        });
+
+                        await fetch('/subscribe', {
+                            method: 'POST', body: JSON.stringify(subscription), headers: { 'Content-Type': 'application/json' }
+                        });
+                        alert('Successfully subscribed to push notifications!');
+                    } catch (error) {
+                        console.error('Failed to subscribe the user: ', error);
+                        webPushSwitch.checked = false;
+                    }
+                }
+            }
+            
+            async function unsubscribeUser() {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    const subscription = await registration.pushManager.getSubscription();
+                    if (subscription) {
+                        await subscription.unsubscribe();
+                    }
+                    await fetch('/unsubscribe', { method: 'POST' });
+                    alert('Unsubscribed from push notifications.');
+                } catch (error) {
+                    console.error('Error unsubscribing:', error);
+                    webPushSwitch.checked = true; // Revert switch on failure
+                }
+            }
 
             function saveReminders() {
-                localStorage.setItem('reminders', JSON.stringify(reminders));
+                const customReminders = reminders.filter(r => r.type !== 'daily');
+                localStorage.setItem('reminders', JSON.stringify(customReminders));
             }
 
             function renderReminders() {
                 if (!remindersList) return;
                 remindersList.innerHTML = '';
+                reminders.sort((a, b) => new Date(a.time) - new Date(b.time));
+
                 reminders.forEach((reminder, index) => {
-                    const li = document.createElement('li');
-                    li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    const listItem = document.createElement('li');
+                    listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
 
-                    const span = document.createElement('span');
                     if (reminder.type === 'daily') {
-                        span.textContent = `${reminder.text} at ${reminder.time} (Daily Push Notification)`;
+                        listItem.dataset.id = reminder._id;
+                        const isEnabled = typeof reminder.isEnabled === 'boolean' ? reminder.isEnabled : true;
+                        listItem.innerHTML = `
+                            <div class="reminder-info">
+                                <strong>${reminder.title}</strong> - ${reminder.time}
+                                <div class="text-muted small">${reminder.message || ''}</div>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <div class="form-check form-switch me-3">
+                                    <input class="form-check-input reminder-toggle-switch" type="checkbox" role="switch" ${isEnabled ? 'checked' : ''}>
+                                </div>
+                                <button class="btn btn-info btn-sm me-2 edit-notification-btn">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm delete-notification-btn">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>`;
                     } else {
-                        span.textContent = `${reminder.text} at ${new Date(reminder.time).toLocaleString()}`;
+                        listItem.dataset.index = index;
+                        listItem.innerHTML = `
+                            <div>
+                                <strong>${reminder.text}</strong> - ${new Date(reminder.time).toLocaleString()}
+                            </div>
+                            <button class="btn btn-danger btn-sm delete-reminder-btn">
+                                <i class="bi bi-trash"></i>
+                            </button>`;
                     }
-                    li.appendChild(span);
-
-                    const deleteButton = document.createElement('button');
-                    deleteButton.className = 'btn btn-danger btn-sm';
-                    deleteButton.textContent = 'Delete';
-                    deleteButton.onclick = async () => {
-                        console.log('Deleting reminder:', reminder);
-                        if (reminder.type === 'daily') {
-                            // This is a scheduled push notification, cancel it on the server
-                            try {
-                                const response = await fetch(`/api/cancel-notification/${reminder._id}`, {
-                                    method: 'DELETE'
-                                });
-                                if (!response.ok) {
-                                    throw new Error('Failed to cancel notification on the server.');
-                                }
-                            } catch (error) {
-                                console.error(error);
-                                alert('Could not cancel the scheduled notification. Please try again.');
-                                return; // Stop if the server-side deletion fails
-                            }
-                        }
-                        
-                        // Remove from local array and re-render
-                        reminders.splice(index, 1);
-                        saveReminders();
-                        renderReminders();
-                        scheduleReminders(); // Re-evaluate in-app timeouts
-                    };
-                    li.appendChild(deleteButton);
-                    remindersList.appendChild(li);
+                    remindersList.appendChild(listItem);
                 });
             }
 
             function scheduleReminders() {
-                 for (let i = 1; i < 99999; i++) {
-                    window.clearTimeout(i);
-                }
-
+                for (let i = 1; i < 99999; i++) { window.clearTimeout(i); }
                 reminders.forEach(reminder => {
-                    const now = new Date();
-                    const reminderTime = new Date(reminder.time);
-
-                    if (reminderTime > now) {
-                        const timeout = reminderTime.getTime() - now.getTime();
-                        setTimeout(() => {
-                            // Check if in-app reminders are enabled before showing alert
-                            if (localStorage.getItem('inAppRemindersEnabled') !== 'false') {
-                                alert(`Reminder: ${reminder.text}`);
-                            }
-                            reminders = reminders.filter(r => r.time !== reminder.time);
-                            saveReminders();
-                            renderReminders();
-                        }, timeout);
-                    }
-                });
-            }
-
-            if (reminderForm) {
-                const newReminderForm = reminderForm.cloneNode(true);
-                reminderForm.parentNode.replaceChild(newReminderForm, reminderForm);
-
-                newReminderForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    const title = "Daily Reminder";
-                    const message = newReminderForm.querySelector('#reminderText').value;
-                    const time = newReminderForm.querySelector('#reminderTime').value;
-                    
-                    if (message && time) {
-                        try {
-                            const response = await fetch('/api/schedule-notification', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ title, message, time })
-                            });
-
-                            if (response.ok) {
-                                const newNotification = await response.json();
-                                alert('Daily notification scheduled successfully!');
-                                
-                                // Add to the local list for display purposes, including the server-generated _id
-                                reminders.push({
-                                    _id: newNotification._id, // Store the ID from the server
-                                    text: message,
-                                    time: time,
-                                    type: 'daily'
-                                });
+                    if (reminder.type === 'custom') {
+                        const now = new Date();
+                        const reminderTime = new Date(reminder.time);
+                        if (reminderTime > now) {
+                            const timeout = reminderTime.getTime() - now.getTime();
+                            setTimeout(() => {
+                                if (localStorage.getItem('inAppRemindersEnabled') === 'true') {
+                                    alert(`Reminder: ${reminder.text}`);
+                                }
+                                reminders = reminders.filter(r => r.time !== reminder.time);
                                 saveReminders();
                                 renderReminders();
-                                newReminderForm.reset();
-                            } else {
-                                alert('Failed to schedule notification. Please try again.');
-                            }
-                        } catch (error) {
-                            console.error('Error scheduling notification:', error);
-                            alert('An error occurred while scheduling the notification.');
+                            }, timeout);
                         }
                     }
                 });
             }
 
-            if (customReminderForm) {
-                // To avoid attaching multiple listeners, replace the form element
-                const newCustomReminderForm = customReminderForm.cloneNode(true);
-                customReminderForm.parentNode.replaceChild(newCustomReminderForm, customReminderForm);
-                
-                newCustomReminderForm.addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    const text = document.getElementById('customReminderText').value;
-                    const time = document.getElementById('customReminderTime').value;
-                    if (text && time) {
-                        reminders.push({ text, time });
+            async function loadInitialState() {
+                try {
+                    const response = await fetch('/api/profile');
+                    const profile = response.ok ? await response.json() : {};
+                    if (profile.settings) {
+                        emailNotificationSwitch.checked = profile.settings.emailNotifications;
+                    }
+                } catch (e) { console.error('Error fetching profile settings:', e); }
+
+                const registration = await navigator.serviceWorker.ready;
+                webPushSwitch.checked = !!(await registration.pushManager.getSubscription());
+                inAppReminderSwitch.checked = localStorage.getItem('inAppRemindersEnabled') === 'true';
+
+                const localReminders = JSON.parse(localStorage.getItem('reminders')) || [];
+                try {
+                    const response = await fetch('/api/scheduled-notifications');
+                    const serverReminders = response.ok ? await response.json() : [];
+                    reminders = [
+                        ...localReminders.map(r => ({ ...r, type: 'custom' })),
+                        ...serverReminders.map(r => ({ ...r, type: 'daily' }))
+                    ];
+                } catch (e) {
+                    console.error('Error fetching server reminders:', e);
+                    reminders = localReminders.map(r => ({ ...r, type: 'custom' }));
+                }
+                renderReminders();
+                scheduleReminders();
+            }
+
+            // --- Event Listeners ---
+            webPushSwitch.addEventListener('change', () => webPushSwitch.checked ? subscribeUser() : unsubscribeUser());
+            inAppReminderSwitch.addEventListener('change', () => localStorage.setItem('inAppRemindersEnabled', inAppReminderSwitch.checked));
+            emailNotificationSwitch.addEventListener('change', async () => {
+                try {
+                    await fetch('/api/profile/settings', {
+                        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ emailNotifications: emailNotificationSwitch.checked })
+                    });
+                } catch (e) {
+                    console.error('Error updating email settings:', e);
+                    emailNotificationSwitch.checked = !emailNotificationSwitch.checked;
+                }
+            });
+
+            reminderForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const title = "Daily Reminder";
+                const message = reminderForm.querySelector('#reminderText').value;
+                const time = reminderForm.querySelector('#reminderTime').value;
+                if (!message || !time) return;
+                try {
+                    const response = await fetch('/api/schedule-notification', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title, message, time })
+                    });
+                    if (response.ok) {
+                        const newNotification = await response.json();
+                        reminders.push({ ...newNotification, type: 'daily' });
+                        renderReminders();
+                        reminderForm.reset();
+                    } else { alert('Failed to schedule notification.'); }
+                } catch (error) { console.error(error); }
+            });
+
+            customReminderForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const text = customReminderForm.querySelector('#customReminderText').value;
+                const time = customReminderForm.querySelector('#customReminderTime').value;
+                if (!text || !time) return;
+                reminders.push({ text, time, type: 'custom' });
+                saveReminders();
+                renderReminders();
+                scheduleReminders();
+                customReminderForm.reset();
+            });
+
+            remindersList.addEventListener('click', async (event) => {
+                const deleteNotificationBtn = event.target.closest('.delete-notification-btn');
+                const deleteReminderBtn = event.target.closest('.delete-reminder-btn');
+                const editNotificationBtn = event.target.closest('.edit-notification-btn');
+
+                if (editNotificationBtn) {
+                    const listItem = editNotificationBtn.closest('li[data-id]');
+                    const notificationId = listItem.dataset.id;
+                    const reminder = reminders.find(r => r._id === notificationId);
+
+                    if (reminder) {
+                        document.getElementById('editReminderId').value = reminder._id;
+                        document.getElementById('editReminderText').value = reminder.message;
+                        document.getElementById('editReminderTime').value = reminder.time;
+                        const modal = new bootstrap.Modal(document.getElementById('editReminderModal'));
+                        modal.show();
+                    }
+                } else if (deleteNotificationBtn) {
+                    const listItem = deleteNotificationBtn.closest('li[data-id]');
+                    const notificationId = listItem.dataset.id;
+                    if (confirm('Are you sure you want to delete this scheduled reminder?')) {
+                        try {
+                            await fetch(`/api/cancel-notification/${notificationId}`, { method: 'DELETE' });
+                            reminders = reminders.filter(r => r._id !== notificationId);
+                            renderReminders();
+                        } catch (error) { console.error('Error deleting notification:', error); }
+                    }
+                } else if (deleteReminderBtn) {
+                    const listItem = deleteReminderBtn.closest('li[data-index]');
+                    const reminderIndex = parseInt(listItem.dataset.index, 10);
+                    if (confirm('Are you sure you want to delete this custom reminder?')) {
+                        reminders.splice(reminderIndex, 1);
                         saveReminders();
                         renderReminders();
                         scheduleReminders();
-                        newCustomReminderForm.reset();
+                    }
+                }
+            });
+
+            remindersList.addEventListener('change', async (event) => {
+                if (event.target.classList.contains('reminder-toggle-switch')) {
+                    const listItem = event.target.closest('li[data-id]');
+                    const notificationId = listItem.dataset.id;
+                    const isEnabled = event.target.checked;
+                    try {
+                        const response = await fetch(`/api/schedule-notification/${notificationId}/toggle`, {
+                            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ isEnabled })
+                        });
+                        if (!response.ok) throw new Error('Toggle failed');
+                        const reminder = reminders.find(r => r._id === notificationId);
+                        if (reminder) reminder.isEnabled = isEnabled;
+                    } catch (error) {
+                        console.error('Error toggling notification:', error);
+                        event.target.checked = !isEnabled;
+                    }
+                }
+            });
+
+            if(editReminderForm) {
+                editReminderForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const id = document.getElementById('editReminderId').value;
+                    const message = document.getElementById('editReminderText').value;
+                    const time = document.getElementById('editReminderTime').value;
+                    const reminder = reminders.find(r => r._id === id);
+                    
+                    const title = reminder ? reminder.title : "Daily Reminder";
+
+                    try {
+                        const response = await fetch(`/api/schedule-notification/${id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ title, message, time })
+                        });
+
+                        if (response.ok) {
+                            if(reminder) {
+                                reminder.message = message;
+                                reminder.time = time;
+                            }
+                            renderReminders();
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('editReminderModal'));
+                            modal.hide();
+                        } else {
+                            alert('Failed to update the reminder. Please try again.');
+                        }
+                    } catch (error) {
+                        console.error('Error updating reminder:', error);
+                        alert('An error occurred while updating the reminder.');
                     }
                 });
             }
 
-            renderReminders();
-            scheduleReminders();
+            loadInitialState();
         }

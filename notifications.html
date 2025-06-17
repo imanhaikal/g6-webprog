@@ -67,7 +67,36 @@
                         </ul>
                     </div>
                 </div>
+                
+        <!-- Edit Reminder Modal -->
+        <div class="modal fade" id="editReminderModal" tabindex="-1" aria-labelledby="editReminderModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editReminderModalLabel">Edit Reminder</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="editReminderForm">
+                            <input type="hidden" id="editReminderId">
+                            <div class="mb-3">
+                                <label for="editReminderText" class="form-label">Reminder For:</label>
+                                <input type="text" class="form-control" id="editReminderText" placeholder="e.g., Evening Walk" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editReminderTime" class="form-label">Time:</label>
+                                <input type="time" class="form-control" id="editReminderTime" required>
+                            </div>
+                            <div class="modal-footer">
+                               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                               <button type="submit" class="btn btn-primary">Save changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
+        </div>
+    </div>
 
     <script src="js/script.js"></script>
     <script>
