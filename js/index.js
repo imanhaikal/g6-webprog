@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Check if user is logged in
             checkLoginStatus();
+            
         });
 
         function initializeSidebarCollapse() {
@@ -212,6 +213,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Initialize profile page
                         if (page === 'profile') {
                             initializeProfilePage();
+                            initializeAccountDeletion();
+                            handlePasswordUpdate();
+                            handleSession();
                         }
 
                         // Initialize notifications page
@@ -1693,6 +1697,7 @@ document.addEventListener('DOMContentLoaded', () => {
         async function initializeProfilePage() {
             const profileForm = document.getElementById('profileForm');
             const changePasswordForm = document.getElementById('changePasswordForm');
+            console.trace("initializeProfilePage called from:");
             
             try {
                 const response = await fetch('/api/profile');
@@ -2168,3 +2173,213 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Error fetching upcoming workout:', error);
             }
         }
+        async function initializeAccountDeletion() {
+    const isProfilePage = document.getElementById('updateProfileForm') !== null;
+    if (!isProfilePage) return;
+
+    const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+    if (!deleteAccountBtn) {
+        console.error('Delete account button not found');
+        return;
+    }
+
+    deleteAccountBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        
+        // Simple confirmation dialog
+        if (!confirm('Are you sure you want to permanently delete your account? This cannot be undone.')) {
+            return;
+        }
+
+        try {
+            // Show loading state
+            const originalText = deleteAccountBtn.innerHTML;
+            deleteAccountBtn.disabled = true;
+            deleteAccountBtn.innerHTML = `
+                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                Deleting Account...
+            `;
+
+            const response = await fetch('/api/account', {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: {
+        'Content-Type': 'application/json',
+    }
+});
+
+            if (!response.ok) {
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch {
+                    errorData = { message: 'Account deletion failed' };
+                }
+                throw new Error(errorData.message || 'Account deletion failed');
+            }
+
+            // Simple success message since showAlert isn't defined
+            alert('Account deleted successfully. Redirecting...');
+            
+            // Clear any client-side storage
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // Redirect to login
+            window.location.href = '/login.html';
+
+        } catch (error) {
+            console.error('Deletion error:', error);
+            alert(error.message); // Simple alert instead of showAlert
+        } finally {
+            // Reset button state
+            if (deleteAccountBtn) {
+                deleteAccountBtn.disabled = false;
+                deleteAccountBtn.innerHTML = originalText;
+            }
+        }
+    });
+}
+
+async function handlePasswordUpdate() {
+    try {
+        const changePasswordForm = document.getElementById('changePasswordForm');
+        if (!changePasswordForm) return;
+
+        changePasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Get form elements
+            const currentPassword = document.getElementById('currentPassword');
+            const newPassword = document.getElementById('newPassword');
+            const confirmPassword = document.getElementById('confirmNewPassword');
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            
+            // Store original button text
+            const originalBtnText = submitBtn.innerHTML;
+            
+            try {
+                // Validate inputs
+                if (!currentPassword.value || !newPassword.value || !confirmPassword.value) {
+                    showSimpleAlert('All fields are required', 'danger');
+                    return;
+                }
+                
+                if (newPassword.value !== confirmPassword.value) {
+                    showSimpleAlert('New passwords do not match', 'danger');
+                    return;
+                }
+                
+                if (newPassword.value.length < 8) {
+                    showSimpleAlert('Password must be at least 8 characters', 'danger');
+                    return;
+                }
+
+                // Show loading state
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `
+                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                    Updating...
+                `;
+
+                // Send request to server
+                const response = await fetch('/api/update-password', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        currentPassword: currentPassword.value,
+                        newPassword: newPassword.value
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to update password');
+                }
+
+                // Success - reset form and show message
+                changePasswordForm.reset();
+                showSimpleAlert('Password updated successfully!', 'success');
+                
+            } catch (error) {
+                console.error('Password update error:', error);
+                showSimpleAlert(error.message, 'danger');
+            } finally {
+                // Reset button state
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            }
+        });
+
+        // Simple alert function replacement
+        function showSimpleAlert(message, type) {
+            // Remove any existing alerts
+            const existingAlert = document.querySelector('.password-alert');
+            if (existingAlert) existingAlert.remove();
+            
+            // Create alert element
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `password-alert alert alert-${type} mt-3`;
+            alertDiv.textContent = message;
+            
+            // Insert after the form
+            changePasswordForm.parentNode.insertBefore(alertDiv, changePasswordForm.nextSibling);
+            
+            // Auto-dismiss after 5 seconds
+            if (type !== 'danger') {
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 5000);
+            }
+        }
+
+    } catch (error) {
+        console.error('Error initializing password update:', error);
+    }
+}
+
+async function handleSession() {
+    try {
+        // Handle logout of specific session
+        const logoutOtherBtn = document.getElementById('logout-other');
+        if (logoutOtherBtn) {
+            logoutOtherBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const sessionItem = document.getElementById('delete-class');
+                
+                try {
+                    if (sessionItem) {
+                        sessionItem.remove();
+                        alert('Session logged out successfully');
+                    }
+                } catch (error) {
+                    console.error('Failed to log out session:', error);
+                    alert('Failed to log out session. Please try again.');
+                }
+            });
+        }
+
+        // Handle logout of all other sessions
+        const logoutAllBtn = document.getElementById('log-out-all-other');
+        if (logoutAllBtn) {
+            logoutAllBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const sessionItem = document.getElementById('delete-class');
+                
+                try {
+                    if (sessionItem) {
+                        sessionItem.remove();
+                        alert('All other sessions logged out successfully');
+                    }
+                } catch (error) {
+                    console.error('Failed to log out sessions:', error);
+                    alert('Failed to log out sessions. Please try again.');
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error setting up session logout handlers:', error);
+    }
+}

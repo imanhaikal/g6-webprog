@@ -1385,6 +1385,98 @@ app.get('/upcoming-workout', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Error fetching upcoming workout:', error);
         res.status(500).send('Failed to fetch upcoming workout.');
+            }
+});
+// PUT /api/update-password - Update user password
+app.put('/api/update-password', authMiddleware, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        const userId = req.session.user.id;
+        const db = client.db('webprog');
+
+        // Basic validation
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: 'Both passwords are required' });
+        }
+
+        // Get user
+        const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) return res.status(401).json({ error: 'Current password is incorrect' });
+
+        // Update password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await db.collection('users').updateOne(
+            { _id: new ObjectId(userId) },
+            { $set: { password: hashedPassword } }
+        );
+
+        res.json({ success: true, message: 'Password updated successfully' });
+    } catch (error) {
+        console.error('Password update error:', error);
+        res.status(500).json({ error: 'Server error during password update' });
+    }
+});
+
+// Make sure this matches your frontend call
+app.delete('/api/account', authMiddleware, async (req, res) => {
+    if (!req.session.user || !req.session.user.id) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    
+    if (!ObjectId.isValid(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID format' });
+    }
+
+    try {
+        const session = client.startSession();
+        
+        try {
+            session.startTransaction();
+            
+            // Your existing deletion operations...
+            await Promise.all([
+                db.collection('users').deleteOne({ _id: new ObjectId(userId) }, { session }),
+                db.collection('activities').deleteMany({ userId: new ObjectId(userId) }, { session }),
+                // ... other collections
+            ]);
+
+            await session.commitTransaction();
+            
+            // Clear session
+            req.session.destroy((err) => {
+                if (err) {
+                    console.error('Session destruction error:', err);
+                    return res.status(500).json({ error: 'Failed to destroy session' });
+                }
+                
+                res.setHeader('Content-Type', 'application/json');
+                res.status(200).json({ 
+                    success: true,
+                    message: 'Account and all data deleted successfully' 
+                });
+            });
+            
+        } catch (transactionError) {
+            await session.abortTransaction();
+            console.error('Transaction error:', transactionError);
+            throw transactionError;
+        } finally {
+            await session.endSession();
+        }
+        
+    } catch (error) {
+        console.error('Account deletion error:', error);
+        res.status(500).json({ 
+            error: 'Account deletion failed',
+            details: error.message 
+        });
     }
 });
 
