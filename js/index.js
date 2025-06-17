@@ -228,6 +228,9 @@ document.addEventListener('DOMContentLoaded', () => {
         function initializeDashboardCharts() {
             console.log('Initializing dashboard charts...');
             
+            // Fetch today's steps
+            fetchTodaySteps();
+
             // Check if the weekly activity chart exists
             const weeklyChartCanvas = document.getElementById('weeklyActivityChart');
             if (!weeklyChartCanvas) {
@@ -351,6 +354,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             } catch (error) {
                 console.error('Error creating weekly activity chart:', error);
+            }
+        }
+
+        async function fetchTodaySteps() {
+            try {
+                const response = await fetch('/today-steps');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch today\'s steps');
+                }
+                const data = await response.json();
+                const totalSteps = data.totalSteps;
+                const goal = 10000;
+                const percentage = Math.min((totalSteps / goal) * 100, 100);
+
+                const stepsCountElement = document.getElementById('today-steps-count');
+                if (stepsCountElement) {
+                    stepsCountElement.textContent = totalSteps.toLocaleString();
+                }
+
+                const circleElement = document.getElementById('steps-circle');
+                if (circleElement) {
+                    circleElement.style.background = `conic-gradient(var(--primary-color) ${percentage}%, #e9ecef ${percentage}%)`;
+                }
+            } catch (error) {
+                console.error('Error fetching today\'s steps:', error);
             }
         }
 

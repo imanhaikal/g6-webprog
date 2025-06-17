@@ -241,6 +241,46 @@ app.get('/get-activities', authMiddleware, async (req, res) => {
     }
 });
 
+app.get('/today-steps', authMiddleware, async (req, res) => {
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const stepsCollection = db.collection('steps');
+
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const aggregation = [
+            {
+                $match: {
+                    userId: new ObjectId(userId),
+                    date: {
+                        $gte: today,
+                        $lt: tomorrow
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalSteps: { $sum: "$steps" }
+                }
+            }
+        ];
+
+        const result = await stepsCollection.aggregate(aggregation).toArray();
+        const totalSteps = result.length > 0 ? result[0].totalSteps : 0;
+
+        res.json({ totalSteps });
+    } catch (error) {
+        console.error('Error fetching today\'s steps:', error);
+        res.status(500).send('Failed to fetch today\'s steps.');
+    }
+});
+
 // Get all activities route
 app.get('/get-all-activities', authMiddleware, async (req, res) => {
     const userId = req.session.user.id;
@@ -756,6 +796,25 @@ app.put('/api/profile', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Error updating profile:', error);
         res.status(500).send('Failed to update profile.');
+    }
+});
+
+// Get user profile route
+app.get('/profile', authMiddleware, async (req, res) => {
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    try {
+        const user = await db.collection('users').findOne(
+            { _id: new ObjectId(userId) },
+            { projection: { password: 0 } } // Exclude password from the result
+        );
+        if (!user) {
+            return res.status(404).send('User not found.');
+        }
+        res.json(user);
+    } catch (error) {
+        console.error('Error fetching profile:', error);
+        res.status(500).send('Failed to fetch profile.');
     }
 });
 
