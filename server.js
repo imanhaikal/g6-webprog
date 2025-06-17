@@ -308,7 +308,7 @@ app.post('/register', async (req, res) => {
         await templatesCollection.insertMany(userPresetTemplates);
 
         // Send welcome email
-        const user = await db.collection('users').findOne({ _id: new ObjectId(req.session.user.id) });
+        const user = await db.collection('users').findOne({ _id: userId });
         
         if (user && user.settings && user.settings.emailNotifications === false) {
             console.log(`Email notifications are disabled for ${email}. Skipping welcome email.`);
