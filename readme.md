@@ -45,10 +45,9 @@ This is a web application designed to help users track their health and fitness 
 
 3.  **Set up your environment:**
     - Create a `.env` file in the root of the project.
-    - Add your MongoDB Atlas connection string and Mapbox access token:
+    - Add your MongoDB Atlas connection string:
       ```
       MONGO_URI="your_mongodb_connection_string"
-      MAPBOX_ACCESS_TOKEN="your_mapbox_public_access_token"
       ```
     *Note: A `.env.example` file is included in the repository to show the required environment variables.*
 

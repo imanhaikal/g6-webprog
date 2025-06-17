@@ -19,12 +19,12 @@ const uri = process.env.MONGO_URI;
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     let uploadDir = 'profile_pics';
-    
+
     // Check if this is a meal picture upload
     if (file.fieldname === 'mealPicture') {
       uploadDir = 'meal_pics';
     }
-    
+
     const uploadPath = path.join(__dirname, `uploads/${uploadDir}`);
     // Create the directory if it doesn't exist
     fs.mkdirSync(uploadPath, { recursive: true });
@@ -212,15 +212,6 @@ app.get('/logout', (req, res) => {
         }
         res.redirect('/landing.html');
     });
-});
-
-// Session status check route
-app.get('/api/session-status', (req, res) => {
-    if (req.session.user) {
-        res.status(200).json({ loggedIn: true, user: req.session.user });
-    } else {
-        res.status(401).json({ loggedIn: false });
-    }
 });
 
 // Log activity route
@@ -745,7 +736,7 @@ app.delete('/api/steps/:id', authMiddleware, async (req, res) => {
 // --- Config ---
 // Endpoint to provide the Mapbox token to the client
 app.get('/api/mapbox-token', authMiddleware, (req, res) => {
-    res.json({ token: process.env.MAPBOX_ACCESS_TOKEN });
+    res.json({ token: "pk.eyJ1IjoiaW1hbmhhaWthbDA0IiwiYSI6ImNtYndzcDR4dDE0bW8ycnB0a3B0bzYwODAifQ.sYAJFD1CEceNAKrlerr-lg" });
 });
 
 // --- Profile Management ---
@@ -807,7 +798,7 @@ app.put('/api/profile', authMiddleware, upload.single('profilePicture'), async (
 app.post('/api/calories', authMiddleware, async (req, res) => {
     const { foodItem, caloriesIntake, mealDate } = req.body;
     const db = client.db('webprog');
-    
+
     if (!foodItem || !caloriesIntake || !mealDate) {
         return res.status(400).send('Missing required fields.');
     }
@@ -896,7 +887,7 @@ app.get('/api/calorie-suggestion', authMiddleware, async (req, res) => {
 
         if (recentActivities.length > 0) {
             const activeDays = new Set(recentActivities.map(a => new Date(a.date).toDateString())).size;
-            
+
             if (activeDays >= 6) {
                 activityFactor = 1.725; // Very active
             } else if (activeDays >= 3) {
@@ -954,10 +945,10 @@ app.get('/api/meal-suggestions', authMiddleware, async (req, res) => {
         const results = response.data.results.map(meal => {
             // Extract calories from nutrition data
             const calories = meal.nutrition?.nutrients.find(n => n.name === 'Calories')?.amount || 'N/A';
-            
+
             // Get ingredients list
             const ingredients = meal.extendedIngredients?.map(i => i.original).join(', ') || 'Not available';
-            
+
             // Get recipe instructions (combining all steps)
             let recipe = 'Not available';
             if (meal.analyzedInstructions && meal.analyzedInstructions.length > 0) {
@@ -966,7 +957,7 @@ app.get('/api/meal-suggestions', authMiddleware, async (req, res) => {
                     recipe = steps.map(s => `${s.number}. ${s.step}`).join('\n');
                 }
             }
-            
+
             return {
                 id: meal.id,
                 name: meal.title,
@@ -998,7 +989,7 @@ app.post('/api/meal-plans', authMiddleware, upload.single('mealPicture'), async 
         isCustom: isCustom === 'true',
         createdAt: new Date()
     };
-    
+
     if (req.file) { // For custom meals uploaded by user
         newMealPlan.imageUrl = `/uploads/meal_pics/${req.file.filename}`;
     } else if (imageUrl) { // For saving a suggestion
@@ -1032,7 +1023,7 @@ app.delete('/api/meal-plans/:id', authMiddleware, async (req, res) => {
     if (!ObjectId.isValid(id)) {
         return res.status(400).json({ message: 'Invalid meal plan ID format.' });
     }
-    
+
     const db = client.db('webprog');
     try {
         // First check if the meal plan exists and belongs to the user
@@ -1040,31 +1031,90 @@ app.delete('/api/meal-plans/:id', authMiddleware, async (req, res) => {
             _id: new ObjectId(id),
             userId: new ObjectId(req.session.user.id)
         });
-        
+
         if (!mealPlan) {
             return res.status(404).json({ message: 'Meal plan not found or you do not have permission to delete it.' });
         }
-        
+
         // If it's a custom meal with an image, we could delete the image file here
         // (Not implementing file deletion for now to avoid complexity)
-        
+
         // Now delete the meal plan
         const result = await db.collection('meal_plans').deleteOne({
             _id: new ObjectId(id),
             userId: new ObjectId(req.session.user.id)
         });
-        
+
         if (result.deletedCount === 0) {
             return res.status(500).json({ message: 'Failed to delete the meal plan. Please try again.' });
         }
-        
-        res.status(200).json({ 
+
+        res.status(200).json({
             message: 'Meal plan deleted successfully.',
             deletedId: id
         });
     } catch (error) {
         console.error('Error deleting meal plan:', error);
         res.status(500).json({ message: 'An error occurred while deleting the meal plan.' });
+    }
+});
+
+// Make sure this matches your frontend call
+app.delete('/api/account', authMiddleware, async (req, res) => {
+    if (!req.session.user || !req.session.user.id) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+
+    if (!ObjectId.isValid(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID format' });
+    }
+
+    try {
+        const session = client.startSession();
+
+        try {
+            session.startTransaction();
+
+            // Your existing deletion operations...
+            await Promise.all([
+                db.collection('users').deleteOne({ _id: new ObjectId(userId) }, { session }),
+                db.collection('activities').deleteMany({ userId: new ObjectId(userId) }, { session }),
+                // ... other collections
+            ]);
+
+            await session.commitTransaction();
+
+            // Clear session
+            req.session.destroy((err) => {
+                if (err) {
+                    console.error('Session destruction error:', err);
+                    return res.status(500).json({ error: 'Failed to destroy session' });
+                }
+
+                res.setHeader('Content-Type', 'application/json');
+                res.status(200).json({
+                    success: true,
+                    message: 'Account and all data deleted successfully'
+                });
+            });
+
+        } catch (transactionError) {
+            await session.abortTransaction();
+            console.error('Transaction error:', transactionError);
+            throw transactionError;
+        } finally {
+            await session.endSession();
+        }
+
+    } catch (error) {
+        console.error('Account deletion error:', error);
+        res.status(500).json({
+            error: 'Account deletion failed',
+            details: error.message
+        });
     }
 });
 

@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Check if user is logged in
             checkLoginStatus();
+
         });
 
         async function checkLoginStatus() {
@@ -78,22 +79,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Failed to fetch session status:', error);
             }
         }
-        
+
         async function loadUserProfileInfo() {
             try {
                 const response = await fetch('/api/profile');
                 if (!response.ok) {
                     throw new Error('Failed to fetch user profile');
                 }
-                
+
                 const user = await response.json();
-                
+
                 // Update user name in the header
                 const userDisplayName = document.getElementById('userDisplayName');
                 if (userDisplayName) {
                     userDisplayName.textContent = user.name || user.username;
                 }
-                
+
                 // Update user profile picture in the header
                 const userProfilePicture = document.getElementById('userProfilePicture');
                 if (userProfilePicture) {
@@ -104,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         userProfilePicture.src = `https://i.pravatar.cc/40?u=${user.username}`;
                     }
                 }
-                
+
                 return user;
             } catch (error) {
                 console.error('Error loading user profile:', error);
@@ -258,11 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Initialize profile page
                         if (page === 'profile') {
                             initializeProfilePage();
-                        }
-
-                        // Initialize nutrition page
-                        if (page === 'nutrition') {
-                            initializeNutritionPage();
+                            initializeAccountDeletion();
                         }
                     } else {
                         throw new Error('Content element not found in the loaded page');
@@ -1805,6 +1802,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- Profile Management ---
         async function initializeProfilePage() {
+            console.trace("initializeProfilePage called from:");
             const profileForm = document.getElementById('updateProfileForm');
             
             try {
@@ -1862,7 +1860,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             const errorText = await updateResponse.text();
                             throw new Error(errorText || 'Failed to update profile.');
                         }
-                        
+
                         const result = await updateResponse.json();
                         alert('Profile updated successfully!');
 
@@ -1925,6 +1923,74 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        async function initializeAccountDeletion() {
+    const isProfilePage = document.getElementById('updateProfileForm') !== null;
+    if (!isProfilePage) return;
+
+    const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+    if (!deleteAccountBtn) {
+        console.error('Delete account button not found');
+        return;
+    }
+
+    deleteAccountBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+
+        // Simple confirmation dialog
+        if (!confirm('Are you sure you want to permanently delete your account? This cannot be undone.')) {
+            return;
+        }
+
+        try {
+            // Show loading state
+            const originalText = deleteAccountBtn.innerHTML;
+            deleteAccountBtn.disabled = true;
+            deleteAccountBtn.innerHTML = `
+                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                Deleting Account...
+            `;
+
+            const response = await fetch('/api/account', {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: {
+        'Content-Type': 'application/json',
+    }
+});
+
+            if (!response.ok) {
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch {
+                    errorData = { message: 'Account deletion failed' };
+                }
+                throw new Error(errorData.message || 'Account deletion failed');
+            }
+
+            // Simple success message since showAlert isn't defined
+            alert('Account deleted successfully. Redirecting...');
+
+            // Clear any client-side storage
+            localStorage.clear();
+            sessionStorage.clear();
+
+            // Redirect to login
+            window.location.href = '/login.html';
+
+        } catch (error) {
+            console.error('Deletion error:', error);
+            alert(error.message); // Simple alert instead of showAlert
+        } finally {
+            // Reset button state
+            if (deleteAccountBtn) {
+                deleteAccountBtn.disabled = false;
+                deleteAccountBtn.innerHTML = originalText;
+            }
+        }
+    });
+}
+
         // --- Nutrition Page ---
         let currentMealSuggestion = null; // Variable to hold meal data for the modal
 
@@ -1948,18 +2014,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (addCustomMealForm) {
                 addCustomMealForm.addEventListener('submit', handleAddCustomMeal);
             }
-            
+
             // Save to Favorites Button in Modal
             const saveToFavoritesBtn = document.getElementById('saveToFavoritesBtn');
             if(saveToFavoritesBtn) {
                 saveToFavoritesBtn.addEventListener('click', saveCurrentSuggestionToFavorites);
             }
-            
+
             // We're now manually showing the modal and calling populateMealDetailModal
 
             // Load saved meal plans
             loadSavedMealPlans();
-            
+
             // Add global event delegation for buttons
             document.addEventListener('click', function(event) {
                 // Delete meal plan button
@@ -1970,7 +2036,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         deleteMealPlan(mealPlanId);
                     }
                 }
-                
+
                 // Read more button
                 if (event.target.classList.contains('read-more-btn')) {
                     const textContainer = event.target.closest('.text-container');
@@ -2021,7 +2087,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 suggestionEl.innerHTML = `
-                    <strong>Suggested Daily Calorie Intake:</strong> ${data.suggestedCalories} kcal 
+                    <strong>Suggested Daily Calorie Intake:</strong> ${data.suggestedCalories} kcal
                     <br>
                     <small>${data.message}</small>
                 `;
@@ -2041,7 +2107,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const container = document.getElementById('mealSuggestionsContainer');
             container.innerHTML = '<p class="text-muted">Searching...</p>';
-            
+
             try {
                 const response = await fetch(`/api/meal-suggestions?q=${encodeURIComponent(query)}`);
                 if (!response.ok) throw new Error('Failed to fetch meal suggestions.');
@@ -2064,20 +2130,20 @@ document.addEventListener('DOMContentLoaded', () => {
             // Create a row for Bootstrap grid
             const row = document.createElement('div');
             row.className = 'row';
-            
+
             suggestions.forEach(meal => {
                 // Sanitize and format data
                 const calories = Math.round(parseFloat(meal.calories)) || 'N/A';
                 const imageUrl = meal.imageUrl || 'https://placehold.co/300x200?text=No+Image';
-                
+
                 // Create a column for each meal card
                 const col = document.createElement('div');
                 col.className = 'col-md-6 col-lg-4 mb-3';
-                
+
                 // Format ingredients and recipe text with read more functionality
                 const ingredients = meal.ingredients || 'Ingredients not available.';
                 const recipe = meal.recipe || 'Recipe instructions not available.';
-                
+
                 // Create the card with complete details
                 col.innerHTML = `
                     <div class="card h-100 shadow-sm">
@@ -2085,21 +2151,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="card-body">
                             <h5 class="card-title">${meal.name}</h5>
                             <p class="mb-2"><strong>Calories:</strong> ${calories} kcal</p>
-                            
+
                             <div class="mb-3">
                                 <h6 class="text-primary mb-2">Ingredients:</h6>
                                 <div class="text-container">
                                     <p class="small text-content">${ingredients}</p>
-                                    ${ingredients.length > 100 ? 
+                                    ${ingredients.length > 100 ?
                                         `<button class="btn btn-link btn-sm p-0 read-more-btn">Read More</button>` : ''}
                                 </div>
                             </div>
-                            
+
                             <div>
                                 <h6 class="text-primary mb-2">Recipe:</h6>
                                 <div class="text-container">
                                     <p class="small text-content">${recipe}</p>
-                                    ${recipe.length > 100 ? 
+                                    ${recipe.length > 100 ?
                                         `<button class="btn btn-link btn-sm p-0 read-more-btn">Read More</button>` : ''}
                                 </div>
                             </div>
@@ -2109,11 +2175,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 `;
-                
+
                 row.appendChild(col);
-                
+
                 // Store all meal data as properties
-                const mealData = { 
+                const mealData = {
                     id: meal.id,
                     name: meal.name,
                     calories: calories,
@@ -2121,18 +2187,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     ingredients: meal.ingredients,
                     recipe: meal.recipe
                 };
-                
+
                 // Add event listener to save button
                 const saveMealBtn = col.querySelector('.save-meal-btn');
                 saveMealBtn.addEventListener('click', () => {
                     // Set current meal suggestion
                     currentMealSuggestion = mealData;
-                    
+
                     // Save the meal directly
                     saveCurrentSuggestionToFavorites();
                 });
             });
-            
+
             container.appendChild(row);
         }
 
@@ -2149,40 +2215,40 @@ document.addEventListener('DOMContentLoaded', () => {
                     container.innerHTML = '<p class="text-muted col-12">No meals saved yet.</p>';
                     return;
                 }
-                
+
                 // Create a row for Bootstrap grid
                 const row = document.createElement('div');
                 row.className = 'row';
-                
+
                 mealPlans.forEach(meal => {
                     const mealCard = document.createElement('div');
                     mealCard.className = 'col-md-6 col-lg-4 mb-3';
-                    
+
                     // Format ingredients and recipe text with read more functionality
                     const ingredients = meal.ingredients || 'Ingredients not available.';
                     const recipe = meal.recipe || 'Recipe instructions not available.';
-                    
+
                     mealCard.innerHTML = `
                         <div class="card h-100 shadow-sm" data-meal-plan-id="${meal._id}">
                             <img src="${meal.imageUrl || 'https://placehold.co/300x200?text=No+Image'}" class="card-img-top" alt="${meal.name}" style="height: 180px; object-fit: cover;">
                             <div class="card-body">
                                 <h5 class="card-title">${meal.name}</h5>
                                 <p class="mb-2"><strong>Calories:</strong> ${meal.calories} kcal</p>
-                                
+
                                 <div class="mb-3">
                                     <h6 class="text-primary mb-2">Ingredients:</h6>
                                     <div class="text-container">
                                         <p class="small text-content">${ingredients}</p>
-                                        ${ingredients.length > 100 ? 
+                                        ${ingredients.length > 100 ?
                                             `<button class="btn btn-link btn-sm p-0 read-more-btn">Read More</button>` : ''}
                                     </div>
                                 </div>
-                                
+
                                 <div>
                                     <h6 class="text-primary mb-2">Recipe:</h6>
                                     <div class="text-container">
                                         <p class="small text-content">${recipe}</p>
-                                        ${recipe.length > 100 ? 
+                                        ${recipe.length > 100 ?
                                             `<button class="btn btn-link btn-sm p-0 read-more-btn">Read More</button>` : ''}
                                     </div>
                                 </div>
@@ -2194,12 +2260,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         </div>
                     `;
-                    
+
                     row.appendChild(mealCard);
-                    
+
                     // No view recipe button anymore - all details are shown directly on the card
                 });
-                
+
                 container.appendChild(row);
 
             } catch (error) {
@@ -2210,15 +2276,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function populateMealDetailModal() {
             // No need to extract from event - currentMealSuggestion is already set
-            
+
             // Set meal name in both places
             document.getElementById('mealDetailName').textContent = currentMealSuggestion.name;
             document.getElementById('mealDetailNameBanner').textContent = currentMealSuggestion.name;
-            
+
             // Set meal image
             const imageUrl = currentMealSuggestion.imageurl || 'https://placehold.co/800x400?text=No+Image+Available';
             document.getElementById('mealDetailImage').src = imageUrl;
-            
+
             // Set calories in both places
             const calories = currentMealSuggestion.calories || 'N/A';
             document.getElementById('mealDetailCaloriesValue').textContent = calories;
@@ -2228,15 +2294,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${currentMealSuggestion.protein ? `<br><small>Protein: ${currentMealSuggestion.protein}g</small>` : ''}
                 ${currentMealSuggestion.fat ? `<br><small>Fat: ${currentMealSuggestion.fat}g</small>` : ''}
             `;
-            
+
             // Set ingredients and recipe with fallback text
             const ingredients = currentMealSuggestion.ingredients || 'No ingredients information available.';
             document.getElementById('mealDetailIngredients').textContent = ingredients;
-            
+
             const recipe = currentMealSuggestion.recipe || 'No preparation instructions available.';
             document.getElementById('mealDetailRecipe').textContent = recipe;
         }
-        
+
         async function saveCurrentSuggestionToFavorites() {
             if (!currentMealSuggestion) return;
             try {
@@ -2254,10 +2320,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 if (!response.ok) throw new Error('Failed to save meal plan.');
                 alert('Meal saved to your favorites!');
-                
+
                 // Reload saved meal plans
                 await loadSavedMealPlans();
-                
+
                 // Scroll to the saved meals section
                 const savedMealsSection = document.getElementById('savedMealPlansContainer');
                 if (savedMealsSection) {
@@ -2272,26 +2338,26 @@ document.addEventListener('DOMContentLoaded', () => {
         async function handleAddCustomMeal(e) {
             e.preventDefault();
             const form = e.target;
-            
+
             // Get form values
             const mealPicture = document.getElementById('customMealPicture').files[0];
             const name = document.getElementById('customMealName').value;
             const calories = document.getElementById('customMealCalories').value;
             const ingredients = document.getElementById('customMealIngredients').value || 'No ingredients specified';
             const recipe = document.getElementById('customMealRecipe').value || 'No recipe specified';
-            
+
             // Validate required fields
             if (!mealPicture || !name || !calories) {
                 alert('Please fill in all required fields (picture, name, and calories)');
                 return;
             }
-            
+
             // Show loading state
             const submitBtn = form.querySelector('button[type="submit"]');
             const originalBtnText = submitBtn.innerHTML;
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
-            
+
             const formData = new FormData();
             formData.append('mealPicture', mealPicture);
             formData.append('name', name);
@@ -2306,14 +2372,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: formData,
                 });
                 if (!response.ok) throw new Error('Failed to save custom meal.');
-                
+
                 // Success message
                 alert('Custom meal saved successfully!');
                 form.reset();
-                
+
                 // Load saved meal plans and scroll to them
                 await loadSavedMealPlans();
-                
+
                 // Scroll to the saved meals section
                 const savedMealsSection = document.getElementById('savedMealPlansContainer');
                 if (savedMealsSection) {
@@ -2351,7 +2417,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Find the card and show loading state
                 const mealCard = document.querySelector(`[data-meal-plan-id="${mealPlanId}"]`);
                 if (!mealCard) return;
-                
+
                 // Save original content and replace with loading indicator
                 const originalContent = mealCard.innerHTML;
                 mealCard.innerHTML = `
@@ -2362,26 +2428,26 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="ms-3">Deleting...</span>
                     </div>
                 `;
-                
+
                 try {
                     const response = await fetch(`/api/meal-plans/${mealPlanId}`, { method: 'DELETE' });
-                    
+
                     if (!response.ok) {
                         // If error, restore original content
                         mealCard.innerHTML = originalContent;
                         throw new Error('Failed to delete meal plan.');
                     }
-                    
+
                     // On success, fade out the card and then reload all meal plans
                     mealCard.style.transition = 'opacity 0.5s ease';
                     mealCard.style.opacity = '0';
-                    
+
                     // Wait for fade animation to complete
                     setTimeout(async () => {
                         // Reload all meal plans
                         await loadSavedMealPlans();
                     }, 500);
-                    
+
                 } catch(error) {
                     console.error('Error deleting meal plan:', error);
                     alert('Error: ' + error.message);
