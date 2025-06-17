@@ -622,7 +622,7 @@ app.post('/api/workout-templates', authMiddleware, async (req, res) => {
 
 // Log a new workout
 app.post('/api/workouts', authMiddleware, async (req, res) => {
-    const { templateId, duration, date, time, notes, exercises } = req.body;
+    const { templateId, duration, date, time, notes, exercises, calories } = req.body;
     const db = client.db('webprog');
     const workoutsCollection = db.collection('workouts');
 
@@ -630,6 +630,7 @@ app.post('/api/workouts', authMiddleware, async (req, res) => {
         const newWorkout = {
             userId: new ObjectId(req.session.user.id),
             duration: parseInt(duration, 10),
+            calories: calories ? parseInt(calories, 10) : null,
             date: new Date(`${date}T${time}`),
             notes,
             createdAt: new Date()
@@ -778,7 +779,7 @@ app.put('/api/workouts/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     if (!ObjectId.isValid(id)) return res.status(400).send('Invalid workout ID.');
 
-    const { duration, date, time, notes } = req.body;
+    const { duration, date, time, notes, calories } = req.body;
     const db = client.db('webprog');
 
     try {
@@ -786,6 +787,7 @@ app.put('/api/workouts/:id', authMiddleware, async (req, res) => {
             { _id: new ObjectId(id), userId: new ObjectId(req.session.user.id) },
             { $set: {
                 duration: parseInt(duration, 10),
+                calories: calories ? parseInt(calories, 10) : null,
                 date: new Date(`${date}T${time}`),
                 notes
             }}
