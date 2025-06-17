@@ -1320,6 +1320,74 @@ cron.schedule('* * * * *', async () => {
     }
 });
 
+app.get('/upcoming-workout', authMiddleware, async (req, res) => {
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const notificationsCollection = db.collection('scheduled_notifications');
+
+    try {
+        const now = new Date();
+        // Get all enabled notifications for the user
+        const allNotifications = await notificationsCollection.find({
+            userId: new ObjectId(userId),
+            isEnabled: { $ne: false } // Consider true or undefined as enabled
+        }).toArray();
+
+        let nextWorkout = null;
+
+        for (const notification of allNotifications) {
+            if (!notification.schedule || !notification.schedule.type || !notification.schedule.value) continue;
+
+            let nextOccurrence = null;
+            if (notification.schedule.type === 'one-time') {
+                const oneTimeDate = new Date(notification.schedule.value);
+                if (oneTimeDate > now) {
+                    nextOccurrence = oneTimeDate;
+                }
+            } else if (notification.schedule.type === 'daily') {
+                const [hours, minutes] = notification.schedule.value.split(':');
+                let todayOccurrence = new Date();
+                todayOccurrence.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+
+                if (todayOccurrence > now) {
+                    nextOccurrence = todayOccurrence;
+                } else {
+                    // If it's passed for today, check for tomorrow
+                    let tomorrowOccurrence = new Date();
+                    tomorrowOccurrence.setDate(tomorrowOccurrence.getDate() + 1);
+                    tomorrowOccurrence.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+                    nextOccurrence = tomorrowOccurrence;
+                }
+            }
+
+            if (nextOccurrence) {
+                // Check if this is the soonest workout found so far
+                if (!nextWorkout || nextOccurrence < nextWorkout.date) {
+                    nextWorkout = {
+                        date: nextOccurrence,
+                        title: notification.title,
+                    };
+                }
+            }
+        }
+
+        if (nextWorkout) {
+            res.json({
+                found: true,
+                title: nextWorkout.title,
+                day: nextWorkout.date.toLocaleDateString('en-US', { weekday: 'long' }),
+                time: nextWorkout.date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+            });
+        } else {
+            res.json({ found: false });
+        }
+
+    } catch (error) {
+        console.error('Error fetching upcoming workout:', error);
+        res.status(500).send('Failed to fetch upcoming workout.');
+    }
+});
+
 // --- Static Files ---
 // This must come AFTER the routes
 app.use(express.static(path.join(__dirname)));

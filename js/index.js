@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             const script = document.createElement('script');
                             script.src = 'js/dashboard-charts.js';
                             script.onload = () => {
-                                initializeDashboardCharts();
+                            initializeDashboardCharts();
                             };
                             document.body.appendChild(script);
                         }
@@ -241,6 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Fetch today's steps and calories
             fetchTodaySteps();
             fetchTodayCalories();
+            fetchUpcomingWorkout();
 
             // Handle the weekly activity chart
             const weeklyChartCanvas = document.getElementById('weeklyActivityChart');
@@ -337,9 +338,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     dataset.hidden = false;
                 }
             });
-            
-            // Update the chart
-            chart.update();
+                
+                // Update the chart
+                chart.update();
         }
 
         // Function to initialize charts
@@ -1818,6 +1819,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Error fetching weekly activity:", error);
             }
         }
+
         async function initializeNotificationsPage() {
             console.log('Initializing Notifications Page...');
 
@@ -2142,4 +2144,27 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             loadInitialState();
+        }
+
+        async function fetchUpcomingWorkout() {
+            try {
+                const response = await fetch('/upcoming-workout');
+                if (!response.ok) {
+                    throw new Error('Server responded with an error');
+                }
+                const data = await response.json();
+
+                const timeEl = document.getElementById('upcoming-workout-time');
+                const titleEl = document.getElementById('upcoming-workout-title');
+
+                if (data.found) {
+                    timeEl.innerHTML = `<i class="bi bi-calendar-event"></i> ${data.day}, ${data.time}`;
+                    titleEl.textContent = data.title;
+                } else {
+                    timeEl.innerHTML = `<i class="bi bi-calendar-event"></i> No workouts scheduled`;
+                    titleEl.textContent = "Enjoy your rest day!";
+                }
+            } catch (error) {
+                console.error('Error fetching upcoming workout:', error);
+            }
         }
