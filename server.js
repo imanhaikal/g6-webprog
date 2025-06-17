@@ -7,6 +7,7 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const webPush = require('web-push');
 const nodemailer = require('nodemailer');
+const cron = require('node-cron');
 
 const app = express();
 const port = 3000;
@@ -153,6 +154,21 @@ app.post('/subscribe', authMiddleware, async (req, res) => {
     }
 });
 
+// Unsubscribe route
+app.post('/unsubscribe', authMiddleware, async (req, res) => {
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const subscriptionsCollection = db.collection('subscriptions');
+
+    try {
+        await subscriptionsCollection.deleteMany({ userId: new ObjectId(userId) });
+        res.status(200).json({ message: 'Unsubscribed successfully.' });
+    } catch (error) {
+        console.error('Error unsubscribing:', error);
+        res.status(500).send('Failed to unsubscribe.');
+    }
+});
+
 // Send notification route (for testing)
 app.post('/send-notification', authMiddleware, async (req, res) => {
     const { title, message } = req.body;
@@ -228,7 +244,10 @@ app.post('/register', async (req, res) => {
             age: parseInt(age, 10),
             weight: weight ? parseFloat(weight) : null,
             height: height ? parseInt(height, 10) : null,
-            createdAt: new Date()
+            createdAt: new Date(),
+            settings: {
+                emailNotifications: true // Default to true
+            }
         });
 
         // Add preset templates for the new user
@@ -243,6 +262,13 @@ app.post('/register', async (req, res) => {
         await templatesCollection.insertMany(userPresetTemplates);
 
         // Send welcome email
+        const user = await db.collection('users').findOne({ _id: new ObjectId(req.session.user.id) });
+        
+        if (user && user.settings && user.settings.emailNotifications === false) {
+            console.log(`Email notifications are disabled for ${email}. Skipping welcome email.`);
+            return;
+        }
+
         await sendWelcomeEmail(email, name);
 
         res.redirect('/login.html');
@@ -856,6 +882,130 @@ app.put('/api/profile', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Error updating profile:', error);
         res.status(500).send('Failed to update profile.');
+    }
+});
+
+// PUT /api/profile/settings - Update user notification settings
+app.put('/api/profile/settings', authMiddleware, async (req, res) => {
+    const { emailNotifications } = req.body;
+    const db = client.db('webprog');
+
+    try {
+        const result = await db.collection('users').updateOne(
+            { _id: new ObjectId(req.session.user.id) },
+            { 
+                $set: {
+                    'settings.emailNotifications': emailNotifications
+                }
+            }
+        );
+        if (result.matchedCount === 0) {
+            return res.status(404).send('User not found.');
+        }
+        res.json({ message: 'Settings updated successfully.' });
+    } catch (error) {
+        console.error('Error updating settings:', error);
+        res.status(500).send('Failed to update settings.');
+    }
+});
+
+// --- Scheduled Notification Routes ---
+app.post('/api/schedule-notification', authMiddleware, async (req, res) => {
+    const { title, message, time } = req.body; // time should be in 'HH:MM' format
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const scheduledNotificationsCollection = db.collection('scheduled_notifications');
+
+    try {
+        const newNotification = {
+            userId: new ObjectId(userId),
+            title,
+            message,
+            time, // e.g., "14:30"
+            lastSentDate: null // To track when the daily notification was last sent
+        };
+        const result = await scheduledNotificationsCollection.insertOne(newNotification);
+        
+        // Return the newly created document, including its _id
+        res.status(201).json({ ...newNotification, _id: result.insertedId });
+    } catch (error) {
+        console.error('Error scheduling notification:', error);
+        res.status(500).send('Failed to schedule notification.');
+    }
+});
+
+app.delete('/api/cancel-notification/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    const scheduledNotificationsCollection = db.collection('scheduled_notifications');
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).send('Invalid notification ID.');
+    }
+
+    try {
+        console.log(`Attempting to delete notification with ID: ${id} for user: ${userId}`);
+        const result = await scheduledNotificationsCollection.deleteOne({
+            _id: new ObjectId(id),
+            userId: new ObjectId(userId) // Ensure users can only delete their own notifications
+        });
+
+        if (result.deletedCount === 0) {
+            console.log(`Deletion failed: No notification found with ID: ${id} for user: ${userId}`);
+            return res.status(404).send('Scheduled notification not found or user not authorized.');
+        }
+
+        console.log(`Successfully deleted notification with ID: ${id}`);
+        res.status(200).json({ message: 'Notification canceled successfully.' });
+    } catch (error) {
+        console.error('Error canceling notification:', error);
+        res.status(500).send('Failed to cancel notification.');
+    }
+});
+
+// Cron job to send scheduled notifications
+cron.schedule('* * * * *', async () => {
+    console.log('Running cron job to check for scheduled notifications...');
+    const db = client.db('webprog');
+    const scheduledNotificationsCollection = db.collection('scheduled_notifications');
+    const subscriptionsCollection = db.collection('subscriptions');
+    
+    const now = new Date();
+    const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+    try {
+        const dueNotifications = await scheduledNotificationsCollection.find({
+            time: currentTime,
+            $or: [
+                { lastSentDate: null },
+                { lastSentDate: { $ne: today } }
+            ]
+        }).toArray();
+
+        for (const notification of dueNotifications) {
+            const userSubscriptions = await subscriptionsCollection.find({ userId: notification.userId }).toArray();
+            
+            if (userSubscriptions.length > 0) {
+                const payload = JSON.stringify({ title: notification.title, body: notification.message });
+                
+                const sendPromises = userSubscriptions.map(sub => 
+                    webPush.sendNotification(sub.subscription, payload)
+                );
+
+                await Promise.all(sendPromises);
+                console.log(`Sent scheduled notification to user ${notification.userId}`);
+
+                // Update the last sent date
+                await scheduledNotificationsCollection.updateOne(
+                    { _id: notification._id },
+                    { $set: { lastSentDate: today } }
+                );
+            }
+        }
+    } catch (error) {
+        console.error('Error in cron job:', error);
     }
 });
 
