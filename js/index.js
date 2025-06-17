@@ -262,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             initializeAccountDeletion();
                             handlePasswordUpdate();
                         }
-
+                        
                         // Initialize nutrition page
                         if (page === 'nutrition') {
                             initializeNutritionPage();
