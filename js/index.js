@@ -70,10 +70,45 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (!response.ok) {
                     // Other server-side error
                     console.error('Error checking session status');
+                } else {
+                    // User is logged in, load their profile info
+                    await loadUserProfileInfo();
                 }
-                // If response is ok (e.g. 200), user is logged in, do nothing.
             } catch (error) {
                 console.error('Failed to fetch session status:', error);
+            }
+        }
+        
+        async function loadUserProfileInfo() {
+            try {
+                const response = await fetch('/api/profile');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch user profile');
+                }
+                
+                const user = await response.json();
+                
+                // Update user name in the header
+                const userDisplayName = document.getElementById('userDisplayName');
+                if (userDisplayName) {
+                    userDisplayName.textContent = user.name || user.username;
+                }
+                
+                // Update user profile picture in the header
+                const userProfilePicture = document.getElementById('userProfilePicture');
+                if (userProfilePicture) {
+                    if (user.profilePictureUrl) {
+                        userProfilePicture.src = user.profilePictureUrl;
+                    } else {
+                        // Use default profile picture with username to get consistent avatar
+                        userProfilePicture.src = `https://i.pravatar.cc/40?u=${user.username}`;
+                    }
+                }
+                
+                return user;
+            } catch (error) {
+                console.error('Error loading user profile:', error);
+                return null;
             }
         }
 
