@@ -209,6 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (page === 'profile') {
                             initializeProfilePage();
                             initializeAccountDeletion();
+                            handlePasswordUpdate();
                         }
                     } else {
                         throw new Error('Content element not found in the loaded page');
@@ -1911,4 +1912,103 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+}
+
+async function handlePasswordUpdate() {
+    try {
+        const changePasswordForm = document.getElementById('changePasswordForm');
+        if (!changePasswordForm) return;
+
+        changePasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Get form elements
+            const currentPassword = document.getElementById('currentPassword');
+            const newPassword = document.getElementById('newPassword');
+            const confirmPassword = document.getElementById('confirmNewPassword');
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            
+            // Store original button text
+            const originalBtnText = submitBtn.innerHTML;
+            
+            try {
+                // Validate inputs
+                if (!currentPassword.value || !newPassword.value || !confirmPassword.value) {
+                    showSimpleAlert('All fields are required', 'danger');
+                    return;
+                }
+                
+                if (newPassword.value !== confirmPassword.value) {
+                    showSimpleAlert('New passwords do not match', 'danger');
+                    return;
+                }
+                
+                if (newPassword.value.length < 8) {
+                    showSimpleAlert('Password must be at least 8 characters', 'danger');
+                    return;
+                }
+
+                // Show loading state
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `
+                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                    Updating...
+                `;
+
+                // Send request to server
+                const response = await fetch('/api/update-password', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        currentPassword: currentPassword.value,
+                        newPassword: newPassword.value
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to update password');
+                }
+
+                // Success - reset form and show message
+                changePasswordForm.reset();
+                showSimpleAlert('Password updated successfully!', 'success');
+                
+            } catch (error) {
+                console.error('Password update error:', error);
+                showSimpleAlert(error.message, 'danger');
+            } finally {
+                // Reset button state
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            }
+        });
+
+        // Simple alert function replacement
+        function showSimpleAlert(message, type) {
+            // Remove any existing alerts
+            const existingAlert = document.querySelector('.password-alert');
+            if (existingAlert) existingAlert.remove();
+            
+            // Create alert element
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `password-alert alert alert-${type} mt-3`;
+            alertDiv.textContent = message;
+            
+            // Insert after the form
+            changePasswordForm.parentNode.insertBefore(alertDiv, changePasswordForm.nextSibling);
+            
+            // Auto-dismiss after 5 seconds
+            if (type !== 'danger') {
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 5000);
+            }
+        }
+
+    } catch (error) {
+        console.error('Error initializing password update:', error);
+    }
 }

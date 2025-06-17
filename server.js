@@ -759,6 +759,40 @@ app.put('/api/profile', authMiddleware, async (req, res) => {
     }
 });
 
+// PUT /api/update-password - Update user password
+app.put('/api/update-password', authMiddleware, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        const userId = req.session.user.id;
+        const db = client.db('webprog');
+
+        // Basic validation
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: 'Both passwords are required' });
+        }
+
+        // Get user
+        const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) return res.status(401).json({ error: 'Current password is incorrect' });
+
+        // Update password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await db.collection('users').updateOne(
+            { _id: new ObjectId(userId) },
+            { $set: { password: hashedPassword } }
+        );
+
+        res.json({ success: true, message: 'Password updated successfully' });
+    } catch (error) {
+        console.error('Password update error:', error);
+        res.status(500).json({ error: 'Server error during password update' });
+    }
+});
+
 // Make sure this matches your frontend call
 app.delete('/api/account', authMiddleware, async (req, res) => {
     if (!req.session.user || !req.session.user.id) {
