@@ -248,17 +248,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         // Initialize all activities page
                         if (page === 'activities') {
-                            displayAllActivities();
+                            initializeAllActivities();
                         }
 
                         // Initialize all workouts page
                         if (page === 'workouts') {
-                            displayAllWorkouts();
+                            initializeAllWorkouts();
                         }
 
                         // Initialize all steps page
                         if (page === 'steps') {
-                            displayAllSteps();
+                            initializeAllSteps();
+                        }
+
+                        // Initialize sessions page
+                        if (page === 'sessions') {
+                            initializeSessionsPage();
+                        }
+
+                        // Initialize nutrition page
+                        if (page === 'nutrition') {
+                            initializeNutritionPage();
                         }
 
                         // Initialize profile page
@@ -272,11 +282,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Initialize notifications page
                         if (page === 'notifications') {
                             initializeNotificationsPage();
-                        }
-                        
-                        // Initialize nutrition page
-                        if (page === 'nutrition') {
-                            initializeNutritionPage();
                         }
                     } else {
                         throw new Error('Content element not found in the loaded page');

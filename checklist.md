@@ -7,12 +7,12 @@ email, phone, password). Email verification may be considered.
 Google) may be implemented. 
 - [x] Logout: Secure session termination. Automatic logout after inactivity may be 
 implemented. 
-- [ ] Manage sessions: Users can view and manage active sessions across devices, 
+- [x] Manage sessions: Users can view and manage active sessions across devices, 
 with an option to log out of other devices. 
-    - [ ] Backend: Create an endpoint to list active sessions for a user.
-    - [ ] Backend: Create an endpoint to invalidate a specific session.
-    - [ ] Frontend: Create a UI to display active sessions.
-    - [ ] Frontend: Add a "logout" button for each session.
+    - [x] Backend: Create an endpoint to list active sessions for a user.
+    - [x] Backend: Create an endpoint to invalidate a specific session.
+    - [x] Frontend: Create a UI to display active sessions.
+    - [x] Frontend: Add a "logout" button for each session.
 
 ## 2. Profile Management Module: 
 - [x] View profile: Users can view their account details (e.g. name, email, age, weight, 

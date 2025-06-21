@@ -51,7 +51,7 @@ app.use(session({
     secret: 'a secret key to sign the cookie',
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({ mongoUrl: uri })
+    store: MongoStore.create({ mongoUrl: uri, dbName: 'webprog' })
 }));
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -341,8 +341,26 @@ app.post('/login', async (req, res) => {
             return res.status(400).send('Invalid username or password.');
         }
 
-        req.session.user = { id: user._id, username: user.username };
-        res.redirect('/index.html');
+        // Store user data in the session in the format expected by connect-mongo
+        req.session.user = { 
+            id: user._id.toString(), // Convert ObjectId to string for consistent storage
+            username: user.username 
+        };
+        
+        req.session.loginInfo = {
+            userAgent: req.headers['user-agent'],
+            ip: req.ip,
+            loginTime: new Date()
+        };
+        
+        // Explicitly save the session before redirecting
+        req.session.save((err) => {
+            if (err) {
+                console.error('Error saving session:', err);
+                return res.status(500).send('Error during login.');
+            }
+            res.redirect('/index.html');
+        });
     } catch (error) {
         console.error(error);
         res.status(500).send('Error during login.');
@@ -365,6 +383,108 @@ app.get('/api/session-status', (req, res) => {
         res.status(200).json({ isLoggedIn: true });
     } else {
         res.status(401).json({ isLoggedIn: false });
+    }
+});
+
+// Get all active sessions for the current user
+app.get('/api/sessions', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    const sessionsCollection = db.collection('sessions');
+    const userId = req.session.user.id;
+    const currentSessionId = req.session.id;
+
+    try {
+        // Find all sessions for the current user's ID
+        const userSessions = await sessionsCollection.find({
+            'session.user.id': userId  // Now searching for the string ID directly
+        }).toArray();
+
+        // Format sessions to send to the client
+        const formattedSessions = userSessions.map(s => {
+            const sessionData = (typeof s.session === 'string') ? JSON.parse(s.session) : s.session;
+            return {
+                id: s._id.toString(), // s._id is the session ID
+                userAgent: sessionData.loginInfo ? sessionData.loginInfo.userAgent : 'Unknown Device',
+                ip: sessionData.loginInfo ? sessionData.loginInfo.ip : 'Unknown IP',
+                loginTime: sessionData.loginInfo ? new Date(sessionData.loginInfo.loginTime) : new Date(s.expires),
+                isCurrent: s._id.toString() === currentSessionId
+            };
+        });
+        
+        res.json(formattedSessions);
+    } catch (error) {
+        console.error('Error fetching sessions:', error);
+        res.status(500).send('Failed to fetch sessions.');
+    }
+});
+
+// Log out from a specific session
+app.delete('/api/sessions/:id', authMiddleware, async (req, res) => {
+    const sessionIdToDelete = req.params.id;
+    const currentSessionId = req.session.id;
+
+    if (sessionIdToDelete === currentSessionId) {
+        return res.status(400).send('You cannot log out your current session from here.');
+    }
+
+    const db = client.db('webprog');
+    const sessionsCollection = db.collection('sessions');
+
+    try {
+        // Use the session ID directly as it's stored as a string
+        const result = await sessionsCollection.deleteOne({ _id: sessionIdToDelete });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).send('Session not found or you are not authorized to delete it.');
+        }
+        
+        res.status(200).json({ message: 'Session logged out successfully.' });
+    } catch (error) {
+        console.error('Error deleting session:', error);
+        res.status(500).send('Failed to delete session.');
+    }
+});
+
+// READ-ONLY TEST ENDPOINT - For debugging session storage issues
+app.get('/api/test-sessions', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    const sessionsCollection = db.collection('sessions');
+    const userId = req.session.user.id;
+    const currentSessionId = req.session.id;
+    
+    try {
+        // 1. Fetch all sessions for the current user to see what the DB returns
+        const userSessionsFromDB = await sessionsCollection.find({ 'session.user.id': userId }).toArray();
+        
+        // 2. Fetch all sessions in the collection for a general overview
+        const allSessionsInDB = await sessionsCollection.find({}).toArray();
+
+        // 3. Return all diagnostic info
+        res.json({
+            message: "Read-Only Session Diagnostics",
+            currentUser: {
+                id: userId,
+                sessionId: currentSessionId
+            },
+            queryForYourSessions: {
+                count: userSessionsFromDB.length,
+                sessions: userSessionsFromDB.map(s => ({ id: s._id, userId: s.session.user.id }))
+            },
+            allSessionsInCollection: {
+                count: allSessionsInDB.length,
+                sessions: allSessionsInDB.map(s => ({ 
+                    id: s._id, 
+                    userId: s.session && s.session.user ? s.session.user.id : null,
+                    hasLoginInfo: s.session && s.session.loginInfo ? true : false
+                }))
+            }
+        });
+    } catch (error) {
+        console.error('Error in test-sessions endpoint:', error);
+        res.status(500).json({
+            error: error.message,
+            stack: error.stack
+        });
     }
 });
 
