@@ -873,19 +873,21 @@ app.post('/api/weight', authMiddleware, async (req, res) => {
 // --- Steps ---
 // POST /api/steps - Log a new steps entry
 app.post('/api/steps', authMiddleware, async (req, res) => {
-    const { steps, distance, distanceUnit, duration, date, time } = req.body;
+    const { steps, distance, distanceUnit, duration, date, time, route } = req.body;
     const db = client.db('webprog');
     try {
-        await db.collection('steps').insertOne({
+        const newEntry = {
             userId: new ObjectId(req.session.user.id),
             steps: parseInt(steps, 10),
             distance: parseFloat(distance),
             distanceUnit,
             duration: parseInt(duration, 10),
             date: new Date(`${date}T${time}`),
-            source: 'manual',
+            source: route ? 'route' : 'manual',
+            route: route || null, // Store route data if provided
             createdAt: new Date()
-        });
+        };
+        await db.collection('steps').insertOne(newEntry);
         res.status(201).json({ message: 'Steps logged successfully.' });
     } catch (error) {
         console.error('Error logging steps:', error);
@@ -941,7 +943,7 @@ app.get('/api/steps/:id', authMiddleware, async (req, res) => {
 app.put('/api/steps/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     if (!ObjectId.isValid(id)) return res.status(400).send('Invalid steps ID.');
-    const { steps, distance, distanceUnit, duration, date, time } = req.body;
+    const { steps, distance, distanceUnit, duration, date, time, route } = req.body;
     const db = client.db('webprog');
     try {
         const result = await db.collection('steps').updateOne(
@@ -951,7 +953,8 @@ app.put('/api/steps/:id', authMiddleware, async (req, res) => {
                 distance: parseFloat(distance),
                 distanceUnit,
                 duration: parseInt(duration, 10),
-                date: new Date(`${date}T${time}`)
+                date: new Date(`${date}T${time}`),
+                route: route || null // Allow updating the route
             }}
         );
         if (result.matchedCount === 0) return res.status(404).send('Entry not found.');

@@ -31,26 +31,26 @@ included.
 
 ## 3. Fitness Tracker Module: 
 - [x] Log activities: 
-    - [ ] Categorize activities (Cardio, Strength, Flexibility, etc.). 
-        - [ ] Backend: Enhance `activities` model to include `category` and `intensity`.
-        - [ ] Frontend: Add UI elements for selecting category and intensity.
-    - [ ] Specify intensity levels (Light, Moderate, Intense). 
-    - [ ] Set duration, time, and date for each activity. 
+    - [x] Categorize activities (Cardio, Strength, Flexibility, etc.). 
+        - [x] Backend: Enhance `activities` model to include `category` and `intensity`.
+        - [x] Frontend: Add UI elements for selecting category and intensity.
+    - [x] Specify intensity levels (Light, Moderate, Intense). 
+    - [x] Set duration, time, and date for each activity. 
 - [x] Log workout: 
-    - [ ] Utilize or create workout templates (e.g., Leg Day Routine). 
-        - [ ] Backend: Create a `WorkoutTemplate` model.
-        - [ ] Backend: Implement CRUD endpoints for workout templates.
-        - [ ] Frontend: Create a UI to manage workout templates.
-    - [ ] Track workout streak for daily exercise consistency. 
-        - [ ] Backend: Add logic to calculate workout streaks.
-        - [ ] Frontend: Display workout streak on the dashboard.
-    - [ ] Set duration, time, and date for each workout. 
+    - [x] Utilize or create workout templates (e.g., Leg Day Routine). 
+        - [x] Backend: Create a `WorkoutTemplate` model.
+        - [x] Backend: Implement CRUD endpoints for workout templates.
+        - [x] Frontend: Create a UI to manage workout templates.
+    - [x] Track workout streak for daily exercise consistency. 
+        - [x] Backend: Add logic to calculate workout streaks.
+        - [x] Frontend: Display workout streak on the dashboard.
+    - [x] Set duration, time, and date for each workout. 
 - [x] Log steps: 
-    - [ ] Manual input for number of steps, distance, duration, date, and time. 
-    - [ ] Check for run/cycling routes. 
-        - [ ] Backend: Integrate with a mapping API.
-        - [ ] Frontend: Display a map for route creation/selection.
-        - [ ] Backend: Save route data with activities.
+    - [x] Manual input for number of steps, distance, duration, date, and time. 
+    - [x] Check for run/cycling routes. 
+        - [x] Backend: Integrate with a mapping API.
+        - [x] Frontend: Display a map for route creation/selection.
+        - [x] Backend: Save route data with activities.
 
 ## 4. Progress Charts Module: 
 - [x] Visual display of user progress: 

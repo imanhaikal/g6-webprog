@@ -6,12 +6,18 @@
     <title>Fitness Tracker - Health and Fitness Tracker</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Mapbox GL JS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
     <link rel="stylesheet" href="index.css">
     <link rel="stylesheet" href="css/fitness.css">
 </head>
 <body>
     <!-- Include the template header and navigation -->
     <div id="templateContent"></div>
+
+    <!-- Alert Placeholder -->
+    <div id="alertPlaceholder" style="position: fixed; top: 80px; right: 20px; z-index: 1050;"></div>
 
     <!-- Fitness Tracker Content -->
     <div class="page-content" id="fitness">
@@ -303,6 +309,9 @@
 
     <script src="js/script.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Mapbox Geocoder Plugin -->
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js"></script>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css" type="text/css">
     <script src="js/fitness.js"></script>
 </body>
 </html> 
