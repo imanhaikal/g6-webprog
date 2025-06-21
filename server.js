@@ -2074,6 +2074,7 @@ app.delete('/api/meal-plans/:id', authMiddleware, async (req, res) => {
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname)));
 
-app.listen(port, () => {
-    console.log(`Server listening at http://localhost:${port}`)
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server running at http://localhost:${port}`);
+    console.log(`Accessible on your network at http://<your-local-ip>:${port}`);
 }); 
