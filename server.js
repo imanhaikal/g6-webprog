@@ -47,8 +47,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Session middleware setup
+const sessionSecret = "1a24840f7d01418d8ff1a6aefa538812dbf917485d499c9614782cc5d193a8d7";
+if (!sessionSecret) {
+    console.error("FATAL ERROR: SESSION_SECRET is not defined in your .env file.");
+    process.exit(1);
+}
+
 app.use(session({
-    secret: 'a secret key to sign the cookie',
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({ mongoUrl: uri, dbName: 'webprog' })
@@ -167,7 +173,8 @@ run().catch(console.dir);
 
 // Authentication middleware
 const authMiddleware = (req, res, next) => {
-    if (req.session.user && req.session.user.id && ObjectId.isValid(req.session.user.id)) {
+    // We now store user.id as a string, so we just check for its existence.
+    if (req.session.user && req.session.user.id) {
         next();
     } else {
         res.redirect('/login.html');
@@ -341,25 +348,35 @@ app.post('/login', async (req, res) => {
             return res.status(400).send('Invalid username or password.');
         }
 
-        // Store user data in the session in the format expected by connect-mongo
-        req.session.user = { 
-            id: user._id.toString(), // Convert ObjectId to string for consistent storage
-            username: user.username 
-        };
-        
-        req.session.loginInfo = {
-            userAgent: req.headers['user-agent'],
-            ip: req.ip,
-            loginTime: new Date()
-        };
-        
-        // Explicitly save the session before redirecting
-        req.session.save((err) => {
+        // Regenerate session to prevent session fixation attacks
+        req.session.regenerate((err) => {
             if (err) {
-                console.error('Error saving session:', err);
+                console.error('Error regenerating session:', err);
                 return res.status(500).send('Error during login.');
             }
-            res.redirect('/index.html');
+
+            // Store user data in the new session
+            req.session.user = { 
+                id: user._id.toString(),
+                username: user.username 
+            };
+            
+            req.session.loginInfo = {
+                userAgent: req.headers['user-agent'],
+                ip: req.ip,
+                loginTime: new Date()
+            };
+            
+            console.log('[Login] Session data set in memory:', JSON.stringify(req.session, null, 2));
+
+            // Explicitly save the regenerated session
+            req.session.save((saveErr) => {
+                if (saveErr) {
+                    console.error('Error saving regenerated session:', saveErr);
+                    return res.status(500).send('Error during login.');
+                }
+                res.redirect('/index.html');
+            });
         });
     } catch (error) {
         console.error(error);
@@ -394,24 +411,64 @@ app.get('/api/sessions', authMiddleware, async (req, res) => {
     const currentSessionId = req.session.id;
 
     try {
-        // Find all sessions for the current user's ID
-        const userSessions = await sessionsCollection.find({
-            'session.user.id': userId  // Now searching for the string ID directly
-        }).toArray();
-
-        // Format sessions to send to the client
-        const formattedSessions = userSessions.map(s => {
-            const sessionData = (typeof s.session === 'string') ? JSON.parse(s.session) : s.session;
-            return {
-                id: s._id.toString(), // s._id is the session ID
-                userAgent: sessionData.loginInfo ? sessionData.loginInfo.userAgent : 'Unknown Device',
-                ip: sessionData.loginInfo ? sessionData.loginInfo.ip : 'Unknown IP',
-                loginTime: sessionData.loginInfo ? new Date(sessionData.loginInfo.loginTime) : new Date(s.expires),
-                isCurrent: s._id.toString() === currentSessionId
-            };
-        });
+        // Fetch ALL sessions from the database
+        const allSessions = await sessionsCollection.find({}).toArray();
+        console.log(`[Sessions] Found ${allSessions.length} total sessions in the database.`);
         
-        res.json(formattedSessions);
+        // Filter sessions in application code to find the ones belonging to the current user
+        const userSessions = [];
+        
+        for (const s of allSessions) {
+            try {
+                // Log the raw session for inspection
+                console.log(`[Sessions] Examining session ${s._id}:`, JSON.stringify(s, null, 2));
+                
+                // The session data could be stored in different formats
+                let sessionData;
+                if (typeof s.session === 'string') {
+                    try {
+                        sessionData = JSON.parse(s.session);
+                    } catch (e) {
+                        // If it's not valid JSON, skip this session
+                        console.log(`[Sessions] Session ${s._id} has invalid JSON.`);
+                        continue;
+                    }
+                } else {
+                    sessionData = s.session;
+                }
+                
+                console.log(`[Sessions] Parsed session data:`, JSON.stringify(sessionData, null, 2));
+                
+                // Check if this session belongs to our user
+                if (sessionData && 
+                    sessionData.user && 
+                    sessionData.user.id && 
+                    sessionData.user.id.toString() === userId.toString()) {
+                    
+                    console.log(`[Sessions] Found matching session for user ${userId}!`);
+                    
+                    userSessions.push({
+                        id: s._id.toString(),
+                        userAgent: sessionData.loginInfo ? sessionData.loginInfo.userAgent : 'Unknown Device',
+                        ip: sessionData.loginInfo ? sessionData.loginInfo.ip : 'Unknown IP',
+                        loginTime: sessionData.loginInfo ? new Date(sessionData.loginInfo.loginTime) : new Date(s.expires),
+                        isCurrent: s._id.toString() === currentSessionId
+                    });
+                } else {
+                    console.log(`[Sessions] Session ${s._id} does not match user ${userId}.`);
+                    if (sessionData && sessionData.user) {
+                        console.log(`[Sessions] Session user data:`, JSON.stringify(sessionData.user, null, 2));
+                    }
+                }
+            } catch (err) {
+                // If there's any error processing this session, just skip it
+                console.error('Error processing session:', err);
+                continue;
+            }
+        }
+        
+        console.log(`[Sessions] Returning ${userSessions.length} sessions for user ${userId}.`);
+        res.json(userSessions);
     } catch (error) {
         console.error('Error fetching sessions:', error);
         res.status(500).send('Failed to fetch sessions.');
