@@ -1,0 +1,9 @@
+#sessions-list .device-info {
+    display: flex;
+    flex-direction: column;
+}
+ 
+#sessions-list .badge {
+    margin-top: 5px;
+    align-self: flex-start;
+} 

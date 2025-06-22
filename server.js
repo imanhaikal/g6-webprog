@@ -47,11 +47,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Session middleware setup
+const sessionSecret = "1a24840f7d01418d8ff1a6aefa538812dbf917485d499c9614782cc5d193a8d7";
+if (!sessionSecret) {
+    console.error("FATAL ERROR: SESSION_SECRET is not defined in your .env file.");
+    process.exit(1);
+}
+
 app.use(session({
-    secret: 'a secret key to sign the cookie',
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({ mongoUrl: uri })
+    store: MongoStore.create({ mongoUrl: uri, dbName: 'webprog' })
 }));
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -167,7 +173,8 @@ run().catch(console.dir);
 
 // Authentication middleware
 const authMiddleware = (req, res, next) => {
-    if (req.session.user && req.session.user.id && ObjectId.isValid(req.session.user.id)) {
+    // We now store user.id as a string, so we just check for its existence.
+    if (req.session.user && req.session.user.id) {
         next();
     } else {
         res.redirect('/login.html');
@@ -341,8 +348,36 @@ app.post('/login', async (req, res) => {
             return res.status(400).send('Invalid username or password.');
         }
 
-        req.session.user = { id: user._id, username: user.username };
-        res.redirect('/index.html');
+        // Regenerate session to prevent session fixation attacks
+        req.session.regenerate((err) => {
+            if (err) {
+                console.error('Error regenerating session:', err);
+                return res.status(500).send('Error during login.');
+            }
+
+            // Store user data in the new session
+            req.session.user = { 
+                id: user._id.toString(),
+                username: user.username 
+            };
+            
+            req.session.loginInfo = {
+                userAgent: req.headers['user-agent'],
+                ip: req.ip,
+                loginTime: new Date()
+            };
+            
+            console.log('[Login] Session data set in memory:', JSON.stringify(req.session, null, 2));
+
+            // Explicitly save the regenerated session
+            req.session.save((saveErr) => {
+                if (saveErr) {
+                    console.error('Error saving regenerated session:', saveErr);
+                    return res.status(500).send('Error during login.');
+                }
+                res.redirect('/index.html');
+            });
+        });
     } catch (error) {
         console.error(error);
         res.status(500).send('Error during login.');
@@ -365,6 +400,148 @@ app.get('/api/session-status', (req, res) => {
         res.status(200).json({ isLoggedIn: true });
     } else {
         res.status(401).json({ isLoggedIn: false });
+    }
+});
+
+// Get all active sessions for the current user
+app.get('/api/sessions', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    const sessionsCollection = db.collection('sessions');
+    const userId = req.session.user.id;
+    const currentSessionId = req.session.id;
+
+    try {
+        // Fetch ALL sessions from the database
+        const allSessions = await sessionsCollection.find({}).toArray();
+        console.log(`[Sessions] Found ${allSessions.length} total sessions in the database.`);
+        
+        // Filter sessions in application code to find the ones belonging to the current user
+        const userSessions = [];
+        
+        for (const s of allSessions) {
+            try {
+                // Log the raw session for inspection
+                console.log(`[Sessions] Examining session ${s._id}:`, JSON.stringify(s, null, 2));
+                
+                // The session data could be stored in different formats
+                let sessionData;
+                if (typeof s.session === 'string') {
+                    try {
+                        sessionData = JSON.parse(s.session);
+                    } catch (e) {
+                        // If it's not valid JSON, skip this session
+                        console.log(`[Sessions] Session ${s._id} has invalid JSON.`);
+                        continue;
+                    }
+                } else {
+                    sessionData = s.session;
+                }
+                
+                console.log(`[Sessions] Parsed session data:`, JSON.stringify(sessionData, null, 2));
+                
+                // Check if this session belongs to our user
+                if (sessionData && 
+                    sessionData.user && 
+                    sessionData.user.id && 
+                    sessionData.user.id.toString() === userId.toString()) {
+                    
+                    console.log(`[Sessions] Found matching session for user ${userId}!`);
+                    
+                    userSessions.push({
+                        id: s._id.toString(),
+                        userAgent: sessionData.loginInfo ? sessionData.loginInfo.userAgent : 'Unknown Device',
+                        ip: sessionData.loginInfo ? sessionData.loginInfo.ip : 'Unknown IP',
+                        loginTime: sessionData.loginInfo ? new Date(sessionData.loginInfo.loginTime) : new Date(s.expires),
+                        isCurrent: s._id.toString() === currentSessionId
+                    });
+                } else {
+                    console.log(`[Sessions] Session ${s._id} does not match user ${userId}.`);
+                    if (sessionData && sessionData.user) {
+                        console.log(`[Sessions] Session user data:`, JSON.stringify(sessionData.user, null, 2));
+                    }
+                }
+            } catch (err) {
+                // If there's any error processing this session, just skip it
+                console.error('Error processing session:', err);
+                continue;
+            }
+        }
+        
+        console.log(`[Sessions] Returning ${userSessions.length} sessions for user ${userId}.`);
+        res.json(userSessions);
+    } catch (error) {
+        console.error('Error fetching sessions:', error);
+        res.status(500).send('Failed to fetch sessions.');
+    }
+});
+
+// Log out from a specific session
+app.delete('/api/sessions/:id', authMiddleware, async (req, res) => {
+    const sessionIdToDelete = req.params.id;
+    const currentSessionId = req.session.id;
+
+    if (sessionIdToDelete === currentSessionId) {
+        return res.status(400).send('You cannot log out your current session from here.');
+    }
+
+    const db = client.db('webprog');
+    const sessionsCollection = db.collection('sessions');
+
+    try {
+        // Use the session ID directly as it's stored as a string
+        const result = await sessionsCollection.deleteOne({ _id: sessionIdToDelete });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).send('Session not found or you are not authorized to delete it.');
+        }
+        
+        res.status(200).json({ message: 'Session logged out successfully.' });
+    } catch (error) {
+        console.error('Error deleting session:', error);
+        res.status(500).send('Failed to delete session.');
+    }
+});
+
+// READ-ONLY TEST ENDPOINT - For debugging session storage issues
+app.get('/api/test-sessions', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    const sessionsCollection = db.collection('sessions');
+    const userId = req.session.user.id;
+    const currentSessionId = req.session.id;
+    
+    try {
+        // 1. Fetch all sessions for the current user to see what the DB returns
+        const userSessionsFromDB = await sessionsCollection.find({ 'session.user.id': userId }).toArray();
+        
+        // 2. Fetch all sessions in the collection for a general overview
+        const allSessionsInDB = await sessionsCollection.find({}).toArray();
+
+        // 3. Return all diagnostic info
+        res.json({
+            message: "Read-Only Session Diagnostics",
+            currentUser: {
+                id: userId,
+                sessionId: currentSessionId
+            },
+            queryForYourSessions: {
+                count: userSessionsFromDB.length,
+                sessions: userSessionsFromDB.map(s => ({ id: s._id, userId: s.session.user.id }))
+            },
+            allSessionsInCollection: {
+                count: allSessionsInDB.length,
+                sessions: allSessionsInDB.map(s => ({ 
+                    id: s._id, 
+                    userId: s.session && s.session.user ? s.session.user.id : null,
+                    hasLoginInfo: s.session && s.session.loginInfo ? true : false
+                }))
+            }
+        });
+    } catch (error) {
+        console.error('Error in test-sessions endpoint:', error);
+        res.status(500).json({
+            error: error.message,
+            stack: error.stack
+        });
     }
 });
 
@@ -1954,6 +2131,7 @@ app.delete('/api/meal-plans/:id', authMiddleware, async (req, res) => {
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname)));
 
-app.listen(port, () => {
-    console.log(`Server listening at http://localhost:${port}`)
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server running at http://localhost:${port}`);
+    console.log(`Accessible on your network at http://<your-local-ip>:${port}`);
 }); 
