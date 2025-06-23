@@ -2263,7 +2263,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Error fetching upcoming workout:', error);
             }
         }
-    async function initializeAccountDeletion() {
+   async function initializeAccountDeletion() {
     const isProfilePage = document.getElementById('updateProfileForm') !== null;
     if (!isProfilePage) return;
 
@@ -2276,57 +2276,45 @@ document.addEventListener('DOMContentLoaded', () => {
     deleteAccountBtn.addEventListener('click', async (e) => {
         e.preventDefault();
 
-        // Simple confirmation dialog
         if (!confirm('Are you sure you want to permanently delete your account? This cannot be undone.')) {
             return;
         }
 
+        // Store original button state at the start
+        const originalText = deleteAccountBtn.innerHTML;
+        deleteAccountBtn.disabled = true;
+        deleteAccountBtn.innerHTML = `
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            Deleting Account...
+        `;
+
         try {
-            // Show loading state
-            const originalText = deleteAccountBtn.innerHTML;
-            deleteAccountBtn.disabled = true;
-            deleteAccountBtn.innerHTML = `
-                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-                Deleting Account...
-            `;
-
             const response = await fetch('/api/account', {
-    method: 'DELETE',
-    credentials: 'include',
-    headers: {
-        'Content-Type': 'application/json',
-    }
-});
-
-            if (!response.ok) {
-                let errorData;
-                try {
-                    errorData = await response.json();
-                } catch {
-                    errorData = { message: 'Account deletion failed' };
+                method: 'DELETE',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
                 }
-                throw new Error(errorData.message || 'Account deletion failed');
+            });
+
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.message || 'Account deletion failed');
             }
 
-            // Simple success message since showAlert isn't defined
             alert('Account deleted successfully. Redirecting...');
-
-            // Clear any client-side storage
             localStorage.clear();
             sessionStorage.clear();
-
-            // Redirect to login
             window.location.href = '/login.html';
 
         } catch (error) {
             console.error('Deletion error:', error);
-            alert(error.message); // Simple alert instead of showAlert
+            alert(error.message);
         } finally {
             // Reset button state
-            if (deleteAccountBtn) {
-                deleteAccountBtn.disabled = false;
-                deleteAccountBtn.innerHTML = originalText;
-            }
+            deleteAccountBtn.disabled = false;
+            deleteAccountBtn.innerHTML = originalText;
         }
     });
 }

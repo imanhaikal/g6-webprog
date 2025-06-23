@@ -353,7 +353,7 @@ app.post('/login', async (req, res) => {
         );
     }
 
-    
+
 const isMatch = await bcrypt.compare(password, user.password);
 if (!isMatch) {
     return res.status(400).send('Invalid username or password.');
@@ -1828,7 +1828,8 @@ app.put('/api/update-password', authMiddleware, async (req, res) => {
     }
 });
 
-// Make sure this matches your frontend call
+
+// Update your /api/account endpoint to this:
 app.delete('/api/account', authMiddleware, async (req, res) => {
     if (!req.session.user || !req.session.user.id) {
         return res.status(401).json({ error: 'Not authenticated' });
@@ -1841,42 +1842,37 @@ app.delete('/api/account', authMiddleware, async (req, res) => {
         return res.status(400).json({ error: 'Invalid user ID format' });
     }
 
+    const session = client.startSession();
+    
     try {
-        const session = client.startSession();
-        
-        try {
-            session.startTransaction();
-            
-            // Your existing deletion operations...
+        await session.withTransaction(async () => {
+            // Delete all user-related data
             await Promise.all([
                 db.collection('users').deleteOne({ _id: new ObjectId(userId) }, { session }),
                 db.collection('activities').deleteMany({ userId: new ObjectId(userId) }, { session }),
-                // ... other collections
+                db.collection('workouts').deleteMany({ userId: new ObjectId(userId) }, { session }),
+                db.collection('workout_templates').deleteMany({ userId: new ObjectId(userId) }, { session }),
+                db.collection('steps').deleteMany({ userId: new ObjectId(userId) }, { session }),
+                db.collection('calories').deleteMany({ userId: new ObjectId(userId) }, { session }),
+                db.collection('meal_plans').deleteMany({ userId: new ObjectId(userId) }, { session }),
+                db.collection('weight_logs').deleteMany({ userId: new ObjectId(userId) }, { session }),
+                db.collection('subscriptions').deleteMany({ userId: new ObjectId(userId) }, { session }),
+                db.collection('scheduled_notifications').deleteMany({ userId: new ObjectId(userId) }, { session })
             ]);
-
-            await session.commitTransaction();
+        });
+        
+        // Destroy session after successful deletion
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Session destruction error:', err);
+                return res.status(500).json({ error: 'Failed to destroy session' });
+            }
             
-            // Clear session
-            req.session.destroy((err) => {
-                if (err) {
-                    console.error('Session destruction error:', err);
-                    return res.status(500).json({ error: 'Failed to destroy session' });
-                }
-                
-                res.setHeader('Content-Type', 'application/json');
-                res.status(200).json({ 
-                    success: true,
-                    message: 'Account and all data deleted successfully' 
-                });
+            res.status(200).json({ 
+                success: true,
+                message: 'Account and all data deleted successfully' 
             });
-            
-        } catch (transactionError) {
-            await session.abortTransaction();
-            console.error('Transaction error:', transactionError);
-            throw transactionError;
-        } finally {
-            await session.endSession();
-        }
+        });
         
     } catch (error) {
         console.error('Account deletion error:', error);
@@ -1884,6 +1880,8 @@ app.delete('/api/account', authMiddleware, async (req, res) => {
             error: 'Account deletion failed',
             details: error.message 
         });
+    } finally {
+        await session.endSession();
     }
 });
 
