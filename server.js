@@ -300,7 +300,8 @@ app.post('/register', async (req, res) => {
             createdAt: new Date(),
             settings: {
                 emailNotifications: true // Default to true
-            }
+            },
+            isActive: true // Add this line to set default active status
         });
 
         // Add preset templates for the new user
@@ -336,6 +337,27 @@ app.post('/login', async (req, res) => {
     const { username, password } = req.body;
     const db = client.db('webprog');
     const usersCollection = db.collection('users');
+
+    // In your login route
+    const user = await usersCollection.findOne({ username });
+    if (!user) {
+        return res.status(400).send('Invalid username or password.');
+    }
+
+    // Add this check for active status
+    if (user.isActive === false) {
+    // Reactivate account by setting isActive to true
+    await usersCollection.updateOne(
+        { _id: user._id },
+        { $set: { isActive: true } }
+        );
+    }
+
+    
+const isMatch = await bcrypt.compare(password, user.password);
+if (!isMatch) {
+    return res.status(400).send('Invalid username or password.');
+}
 
     try {
         const user = await usersCollection.findOne({ username });
@@ -2122,6 +2144,40 @@ app.delete('/api/meal-plans/:id', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Error deleting meal plan:', error);
         res.status(500).json({ message: 'An error occurred while deleting the meal plan.' });
+    }
+});
+
+// PUT /api/account/deactivate - Deactivate user account
+app.put('/api/account/deactivate', authMiddleware, async (req, res) => {
+    const userId = req.session.user.id;
+    const db = client.db('webprog');
+    
+    try {
+        // Update user to set isActive to false
+        const result = await db.collection('users').updateOne(
+            { _id: new ObjectId(userId) },
+            { $set: { isActive: false } }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        // Destroy the session
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Error destroying session:', err);
+                return res.status(500).json({ success: false, message: 'Error during deactivation' });
+            }
+            
+            res.json({ 
+                success: true, 
+                message: 'Account deactivated successfully. You can reactivate by logging in.' 
+            });
+        });
+    } catch (error) {
+        console.error('Account deactivation error:', error);
+        res.status(500).json({ success: false, message: 'Failed to deactivate account' });
     }
 });
 

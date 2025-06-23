@@ -277,6 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             initializeAccountDeletion();
                             handlePasswordUpdate();
                             handleSession();
+                            initializeAccountDeactivation();
                         }
 
                         // Initialize notifications page
@@ -2262,7 +2263,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Error fetching upcoming workout:', error);
             }
         }
-        async function initializeAccountDeletion() {
+    async function initializeAccountDeletion() {
     const isProfilePage = document.getElementById('updateProfileForm') !== null;
     if (!isProfilePage) return;
 
@@ -2970,5 +2971,71 @@ async function handleSession() {
         }
     } catch (error) {
         console.error('Error setting up session logout handlers:', error);
+    }
+}
+
+function initializeAccountDeactivation() {
+    const deactivateBtn = document.getElementById('deactivateAccountBtn');
+    
+    if (deactivateBtn) {
+        deactivateBtn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            
+            if (confirm('Are you sure you want to deactivate your account? You can reactivate it later by logging in.')) {
+                // Store original text before showing loading state
+                const originalText = deactivateBtn.textContent;
+                
+                try {
+                    // Show loading state
+                    deactivateBtn.disabled = true;
+                    deactivateBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+
+                    const response = await fetch('/api/account/deactivate', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include'
+                    });
+
+                    // First check if response is OK
+                    if (!response.ok) {
+                        // Try to parse error message, but fall back to status text
+                        let errorMessage = response.statusText;
+                        try {
+                            const errorData = await response.text();
+                            // If the response is HTML, don't try to parse as JSON
+                            if (!errorData.startsWith('<!DOCTYPE')) {
+                                const parsedError = JSON.parse(errorData);
+                                errorMessage = parsedError.message || errorMessage;
+                            }
+                        } catch (parseError) {
+                            console.error('Error parsing error response:', parseError);
+                        }
+                        throw new Error(errorMessage);
+                    }
+
+                    // If response is OK, try to parse JSON
+                    try {
+                        const data = await response.json();
+                        alert(data.message || 'Account deactivated successfully');
+                        window.location.href = '/login.html';
+                    } catch (parseError) {
+                        console.error('Error parsing success response:', parseError);
+                        alert('Account deactivated successfully');
+                        window.location.href = '/login.html';
+                    }
+                } catch (error) {
+                    console.error('Deactivation error:', error);
+                    alert(error.message || 'Failed to deactivate account');
+                } finally {
+                    // Reset button state
+                    if (deactivateBtn) {
+                        deactivateBtn.disabled = false;
+                        deactivateBtn.textContent = originalText;
+                    }
+                }
+            }
+        });
     }
 }
