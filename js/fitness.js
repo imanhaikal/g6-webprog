@@ -137,6 +137,7 @@ async function handleLogActivity(e) {
             form.reset();
             document.getElementById('activityDate').value = new Date().toISOString().split('T')[0]; // Reset date to today
             loadAndDisplayActivities(); // Refresh the list
+            loadPage('dashboard');
         } else {
             const errorData = await response.json();
             showAlert(`Error: ${errorData.message || 'Failed to log activity'}`, 'danger');
@@ -917,6 +918,7 @@ async function handleLogSteps(e) {
             document.getElementById('stepsDate').value = new Date().toISOString().split('T')[0];
             selectedRoute = null; // Clear selected route
             loadAndDisplayRecentSteps();
+            loadPage('dashboard');
         } else {
             const errorData = await response.json();
             showAlert(`Error: ${errorData.message || 'Failed to log steps'}`, 'danger');

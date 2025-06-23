@@ -1398,37 +1398,18 @@ app.put('/api/profile/settings', authMiddleware, async (req, res) => {
     const db = client.db('webprog');
 
     try {
-        const updateFields = {};
-
-        if (name !== undefined) updateFields.name = name;
-        if (age !== undefined) updateFields.age = parseInt(age, 10);
-        if (weight !== undefined) updateFields.weight = parseFloat(weight);
-        if (height !== undefined) updateFields.height = parseInt(height, 10);
-        if (goals !== undefined) updateFields.goals = goals;
-        if (goalWeight !== undefined) updateFields.goalWeight = parseFloat(goalWeight);
-
-        const result = await db.collection('users').updateOne(
+        await db.collection('users').updateOne(
             { _id: new ObjectId(req.session.user.id) },
-            { 
-                $set: {
-                    'settings.emailNotifications': emailNotifications
-                }
-            },
-            { $set: updateFields }
+            { $set: { "settings.emailNotifications": emailNotifications } }
         );
-
-        if (result.matchedCount === 0) {
-            return res.status(404).send('User not found.');
-        }
         res.json({ message: 'Settings updated successfully.' });
-
-        res.json({ message: 'Profile updated successfully.' });
     } catch (error) {
         console.error('Error updating settings:', error);
         res.status(500).send('Failed to update settings.');
     }
 });
 
+// PUT /api/profile - Update user profile data
 app.put('/api/profile', authMiddleware, async (req, res) => {
     const { name, age, weight, height, goals, goalWeight } = req.body;
     const db = client.db('webprog');
@@ -1445,23 +1426,16 @@ app.put('/api/profile', authMiddleware, async (req, res) => {
 
         const result = await db.collection('users').updateOne(
             { _id: new ObjectId(req.session.user.id) },
-            { 
-                $set: {
-                    'settings.emailNotifications': emailNotifications
-                }
-            },
             { $set: updateFields }
         );
 
         if (result.matchedCount === 0) {
             return res.status(404).send('User not found.');
         }
-        res.json({ message: 'Settings updated successfully.' });
-
         res.json({ message: 'Profile updated successfully.' });
     } catch (error) {
-        console.error('Error updating settings:', error);
-        res.status(500).send('Failed to update settings.');
+        console.error('Error updating profile:', error);
+        res.status(500).send('Failed to update profile.');
     }
 });
 
@@ -1627,31 +1601,26 @@ cron.schedule('* * * * *', async () => {
     const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
     const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
 
-    console.log(`[CRON] Running check at ${currentTime}...`); // Enhanced logging
-    
-    // Set the start of the minute for one-time check
+    // For one-time notifications, check a window of one minute
     const startOfMinute = new Date(now);
     startOfMinute.setSeconds(0, 0);
     const endOfMinute = new Date(startOfMinute.getTime() + 60000);
 
-    console.log(`[CRON] Querying for one-time between ${startOfMinute.toISOString()} and ${endOfMinute.toISOString()}`); // Enhanced logging
-
     const db = client.db('webprog');
     const scheduledNotificationsCollection = db.collection('scheduled_notifications');
-    const subscriptionsCollection = db.collection('subscriptions');
     const usersCollection = db.collection('users');
     
     try {
         const dueNotifications = await scheduledNotificationsCollection.find({
             isEnabled: true,
             $or: [
-                // Find due daily notifications
+                // Daily reminders due at the current time that haven't been sent today
                 { 
                     'schedule.type': 'daily', 
                     'schedule.value': currentTime, 
                     $or: [ { lastSentDate: null }, { lastSentDate: { $ne: today } } ] 
                 },
-                // Find due one-time notifications (scheduled for the current minute)
+                // One-time reminders scheduled for the current minute
                 {
                     'schedule.type': 'one-time',
                     'schedule.value': { $gte: startOfMinute, $lt: endOfMinute }
@@ -1660,39 +1629,25 @@ cron.schedule('* * * * *', async () => {
         }).toArray();
 
         if (dueNotifications.length > 0) {
-            console.log(`[CRON] Found ${dueNotifications.length} due notifications.`, dueNotifications); // Enhanced logging
+            console.log(`[CRON] Found ${dueNotifications.length} due notifications.`);
         }
 
         for (const notification of dueNotifications) {
-            // Fetch user for email settings
             const user = await usersCollection.findOne({ _id: notification.userId });
 
-            // --- Send Push Notification ---
-            const userSubscriptions = await subscriptionsCollection.find({ userId: notification.userId }).toArray();
-            
-            if (userSubscriptions.length > 0) {
-                const payload = JSON.stringify({ title: notification.title, body: notification.message });
-                
-                const sendPromises = userSubscriptions.map(sub => 
-                    webPush.sendNotification(sub.subscription, payload)
-                );
-
-                await Promise.all(sendPromises);
-                console.log(`Sent scheduled push notification to user ${notification.userId}`);
-            }
-
-            // --- Send Email Notification ---
+            // Send email only if the user and their settings are found and email notifications are enabled
             if (user && user.settings && user.settings.emailNotifications) {
-                await sendReminderEmail(user.email, user.name, notification);
+                await sendReminderEmail(user.email, user.name, {
+                    title: notification.title,
+                    message: notification.message
+                });
             }
 
-            // --- Update Notification Status ---
+            // Update the notification status after sending
             if (notification.schedule.type === 'one-time') {
-                // Delete one-time notifications after they're sent
                 await scheduledNotificationsCollection.deleteOne({ _id: notification._id });
                 console.log(`[CRON] Deleted one-time notification ${notification._id}`);
-            } else {
-                // Update the last sent date for daily notifications
+            } else { // 'daily'
                 await scheduledNotificationsCollection.updateOne(
                     { _id: notification._id },
                     { $set: { lastSentDate: today } }
@@ -1700,7 +1655,7 @@ cron.schedule('* * * * *', async () => {
             }
         }
     } catch (error) {
-        console.error('Error in cron job:', error);
+        console.error('[CRON] Error processing reminders:', error);
     }
 });
 
