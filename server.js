@@ -1283,6 +1283,8 @@ app.get('/today-calories', authMiddleware, async (req, res) => {
     const userId = req.session.user.id;
     const db = client.db('webprog');
     const activitiesCollection = db.collection('activities');
+    const workoutsCollection = db.collection('workouts');
+    const usersCollection = db.collection('users');
 
     try {
         const today = new Date();
@@ -1291,27 +1293,45 @@ app.get('/today-calories', authMiddleware, async (req, res) => {
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
-        const aggregation = [
+        // 1. Get calories from activities
+        const activityAggregation = [
             {
                 $match: {
                     userId: new ObjectId(userId),
-                    date: {
-                        $gte: today,
-                        $lt: tomorrow
-                    },
+                    date: { $gte: today, $lt: tomorrow },
                     calories: { $exists: true, $ne: null }
                 }
             },
-            {
-                $group: {
-                    _id: null,
-                    totalCalories: { $sum: "$calories" }
-                }
-            }
+            { $group: { _id: null, totalCalories: { $sum: "$calories" } } }
         ];
+        const activityResult = await activitiesCollection.aggregate(activityAggregation).toArray();
+        const activityCalories = activityResult.length > 0 ? activityResult[0].totalCalories : 0;
 
-        const result = await activitiesCollection.aggregate(aggregation).toArray();
-        const totalCalories = result.length > 0 ? result[0].totalCalories : 0;
+        // 2. Get calories from workouts
+        const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+        const userWeightKg = user && user.weight ? user.weight : 70; // Default to 70kg
+        const MET_VALUE = 4.0; // General MET value for workouts
+
+        const workoutAggregation = [
+            {
+                $match: {
+                    userId: new ObjectId(userId),
+                    date: { $gte: today, $lt: tomorrow },
+                    duration: { $exists: true, $ne: null }
+                }
+            },
+            { $group: { _id: null, totalDuration: { $sum: "$duration" } } }
+        ];
+        const workoutResult = await workoutsCollection.aggregate(workoutAggregation).toArray();
+        let workoutCalories = 0;
+        if (workoutResult.length > 0) {
+            const totalDuration = workoutResult[0].totalDuration;
+            // Calculate calories: (duration_in_minutes * (MET * body_weight_kg * 3.5)) / 200
+            workoutCalories = Math.round((totalDuration * (MET_VALUE * userWeightKg * 3.5)) / 200);
+        }
+        
+        // 3. Combine calories
+        const totalCalories = activityCalories + workoutCalories;
 
         res.json({ totalCalories });
     } catch (error) {
