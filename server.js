@@ -2160,51 +2160,84 @@ app.get('/api/goal-progress', authMiddleware, async (req, res) => {
 
 // GET /api/weekly-activity - Fetch data for the weekly activity chart
 app.get('/api/weekly-activity', authMiddleware, async (req, res) => {
+    const userId = req.session.user.id;
     const db = client.db('webprog');
-    const userId = new ObjectId(req.session.user.id);
-    const today = new Date();
-    const last7Days = Array(7).fill(null).map((_, i) => {
-        const d = new Date(today);
-        d.setDate(today.getDate() - i);
-        return d;
-    }).reverse();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
 
-    const labels = last7Days.map(d => d.toLocaleDateString('en-US', { weekday: 'short' }));
-    
     try {
-        const promises = last7Days.map(day => {
-            const startOfDay = new Date(day.setHours(0, 0, 0, 0));
-            const endOfDay = new Date(day.setHours(23, 59, 59, 999));
+        // Get user weight for calorie calculation
+        const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+        const userWeightKg = user && user.weight ? user.weight : 70; // Default to 70kg if not set
 
-            const stepsPromise = db.collection('steps').aggregate([
-                { $match: { userId, date: { $gte: startOfDay, $lte: endOfDay } } },
-                { $group: { _id: null, total: { $sum: '$steps' } } }
-            ]).toArray();
+        // MET value for general strength training/workouts
+        const MET_VALUE = 4.0; 
 
-            const caloriesPromise = db.collection('activities').aggregate([
-                { $match: { userId, date: { $gte: startOfDay, $lte: endOfDay } } },
-                { $group: { _id: null, total: { $sum: '$calories' } } }
-            ]).toArray();
+        const stepsData = await db.collection('steps').aggregate([
+            { $match: { userId: new ObjectId(userId), date: { $gte: sevenDaysAgo } } },
+            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } }, total: { $sum: "$steps" } } },
+            { $sort: { _id: 1 } }
+        ]).toArray();
 
-            const workoutsPromise = db.collection('workouts').aggregate([
-                { $match: { userId, date: { $gte: startOfDay, $lte: endOfDay } } },
-                { $group: { _id: null, total: { $sum: '$duration' } } }
-            ]).toArray();
-            
-            return Promise.all([stepsPromise, caloriesPromise, workoutsPromise]);
+        const activityCaloriesData = await db.collection('activities').aggregate([
+            { $match: { userId: new ObjectId(userId), date: { $gte: sevenDaysAgo }, calories: { $exists: true, $ne: null } } },
+            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } }, total: { $sum: "$calories" } } },
+            { $sort: { _id: 1 } }
+        ]).toArray();
+
+        const workoutDurationData = await db.collection('workouts').aggregate([
+            { $match: { userId: new ObjectId(userId), date: { $gte: sevenDaysAgo } } },
+            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } }, totalDuration: { $sum: "$duration" } } },
+            { $sort: { _id: 1 } }
+        ]).toArray();
+
+        const workoutCaloriesData = workoutDurationData.map(w => ({
+            _id: w._id,
+            total: Math.round((w.totalDuration * (MET_VALUE * userWeightKg * 3.5)) / 200)
+        }));
+
+        // Combine calories from activities and workouts
+        const combinedCalories = {};
+        activityCaloriesData.forEach(item => {
+            combinedCalories[item._id] = (combinedCalories[item._id] || 0) + item.total;
+        });
+        workoutCaloriesData.forEach(item => {
+            combinedCalories[item._id] = (combinedCalories[item._id] || 0) + item.total;
         });
 
-        const results = await Promise.all(promises);
+        const caloriesData = Object.keys(combinedCalories).map(_id => ({
+            _id,
+            total: combinedCalories[_id]
+        })).sort((a, b) => a._id.localeCompare(b._id));
+        
+        const workoutsData = workoutDurationData.map(w => ({ _id: w._id, total: w.totalDuration }));
 
-        const steps = results.map(r => r[0][0]?.total || 0);
-        const calories = results.map(r => r[1][0]?.total || 0);
-        const workouts = results.map(r => r[2][0]?.total || 0);
+        // Helper to format data for the chart
+        const formatData = (data, days) => {
+            const dataMap = new Map(data.map(d => [d._id, d.total]));
+            return days.map(day => dataMap.get(day) || 0);
+        };
 
-        res.json({ labels, steps, calories, workouts });
+        const labels = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            labels.push(d.toISOString().split('T')[0]);
+        }
+        
+        const dayLabels = labels.map(label => new Date(label).toLocaleDateString('en-US', { weekday: 'short' }));
+
+        res.json({
+            labels: dayLabels,
+            steps: formatData(stepsData, labels),
+            calories: formatData(caloriesData, labels),
+            workouts: formatData(workoutsData, labels)
+        });
 
     } catch (error) {
-        console.error('Error fetching weekly activity:', error);
-        res.status(500).send('Failed to fetch weekly activity data.');
+        console.error('Error fetching weekly activity data:', error);
+        res.status(500).send('Failed to fetch weekly activity data');
     }
 });
 
