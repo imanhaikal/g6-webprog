@@ -1872,28 +1872,44 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             async function subscribeUser() {
-                if ('serviceWorker' in navigator && 'PushManager' in window) {
-                    try {
-                        if (Notification.permission === 'denied') {
-                            alert('You have blocked notifications. To receive them, please enable notifications for this site in your browser settings.');
-                            webPushSwitch.checked = false;
-                            return;
-                        }
+                try {
+                    const registration = await navigator.serviceWorker.ready;
 
-                        const registration = await navigator.serviceWorker.register('/sw.js');
-                        const subscription = await registration.pushManager.subscribe({
-                            userVisibleOnly: true,
-                            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-                        });
-
-                        await fetch('/subscribe', {
-                            method: 'POST', body: JSON.stringify(subscription), headers: { 'Content-Type': 'application/json' }
-                        });
-                        alert('Successfully subscribed to push notifications!');
-                    } catch (error) {
-                        console.error('Failed to subscribe the user: ', error);
-                        webPushSwitch.checked = false;
+                    // Check for existing subscription and unsubscribe if present
+                    const existingSubscription = await registration.pushManager.getSubscription();
+                    if (existingSubscription) {
+                        console.log('Found existing subscription in index.js, unsubscribing...');
+                        await existingSubscription.unsubscribe();
+                        await fetch('/unsubscribe', { method: 'POST' });
+                        console.log('Old subscription removed.');
                     }
+
+                    const response = await fetch('/api/vapid-public-key');
+                    const vapidPublicKey = await response.text();
+                    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+
+                    console.log('Subscribing with new key from index.js...');
+                    const subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: convertedVapidKey,
+                    });
+                    
+                    await fetch('/subscribe', {
+                        method: 'POST',
+                        body: JSON.stringify(subscription),
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    });
+
+                    // Update UI
+                    document.getElementById('subscribe-btn').style.display = 'none';
+                    document.getElementById('unsubscribe-btn').style.display = 'inline-block';
+                    document.getElementById('notification-status').textContent = 'You are subscribed to push notifications.';
+                    
+                } catch (err) {
+                    console.error('Failed to subscribe the user: ', err);
+                    document.getElementById('notification-status').textContent = 'Subscription failed. Please enable notifications in your browser settings.';
                 }
             }
             

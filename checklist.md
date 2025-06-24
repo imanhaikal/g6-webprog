@@ -98,8 +98,8 @@ calorie intakes.
 ## 6. Notification Reminders Module: 
 - [x] Receive web push notifications. 
 - [x] Receive In-App reminders. 
-- [ ] Receive email notifications. 
-    - [ ] Backend: Integrate an email service (e.g., SendGrid).
-    - [ ] Backend: Implement logic to trigger emails.
-    - [ ] Frontend: Provide user settings for email notifications.
+- [x] Receive email notifications. 
+    - [x] Backend: Integrate an email service (e.g., SendGrid).
+    - [x] Backend: Implement logic to trigger emails.
+    - [x] Frontend: Provide user settings for email notifications.
 - [x] Schedule and receive notifications based on desired routine/time. 

@@ -70,21 +70,26 @@ const client = new MongoClient(uri, {
 });
 
 // VAPID keys should be stored in environment variables
-if (! 'BDAIYPN9C6J2QI0Pv6TQk4cM894_wKjTTcvfGZM23nNz0vqHip75PhEa0_I4umV7McPkR4lvgJvKQNo7BDAdb3U' || ! 'RRBnMRhaa7k3Dd6lFUFklcJphav9xrOEk2htu_QMh4Q') {
+if (!'BG9YzZovm3smVseHyc479Kln2q3X0gW4FrrGFST95qccyTF2O2mbQkDewMmhIjxB048Yd6wWMLU8uK6BJ0vQTHo' || !'VN_Ctxbh5ATWOhsRKxbCXeNtEYYasndubI8_JyL3fa8') {
     console.log("You must set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in your .env file. You can use the `npm run vapi` command to generate them.");
     process.exit(1);
 }
 
 const vapidKeys = {
-    publicKey:  'BDAIYPN9C6J2QI0Pv6TQk4cM894_wKjTTcvfGZM23nNz0vqHip75PhEa0_I4umV7McPkR4lvgJvKQNo7BDAdb3U',
-    privateKey:  'RRBnMRhaa7k3Dd6lFUFklcJphav9xrOEk2htu_QMh4Q'
+    publicKey: 'BG9YzZovm3smVseHyc479Kln2q3X0gW4FrrGFST95qccyTF2O2mbQkDewMmhIjxB048Yd6wWMLU8uK6BJ0vQTHo',
+    privateKey: 'VN_Ctxbh5ATWOhsRKxbCXeNtEYYasndubI8_JyL3fa8'
 };
 
 webPush.setVapidDetails(
-    'mailto:your-email@example.com', // Replace with your email
+    'mailto:healthtrackerg6@gmail.com', // It's good practice to have a valid mailto address
     vapidKeys.publicKey,
     vapidKeys.privateKey
 );
+
+// Add new endpoint to retrieve the VAPID public key
+app.get('/api/vapid-public-key', (req, res) => {
+    res.send(vapidKeys.publicKey);
+});
 
 // Nodemailer transporter setup
 const transporter = nodemailer.createTransport({
@@ -273,6 +278,11 @@ app.get('/activities.html', authMiddleware, (req, res) => {
 
 app.get('/workouts.html', authMiddleware, (req, res) => {
     res.sendFile(path.join(__dirname, 'workouts.html'));
+});
+
+// Add route for notification_reminder.html
+app.get('/notification_reminder.html', authMiddleware, (req, res) => {
+    res.sendFile(path.join(__dirname, 'notification_reminder.html'));
 });
 
 // Register route
@@ -1635,12 +1645,30 @@ cron.schedule('* * * * *', async () => {
         for (const notification of dueNotifications) {
             const user = await usersCollection.findOne({ _id: notification.userId });
 
-            // Send email only if the user and their settings are found and email notifications are enabled
-            if (user && user.settings && user.settings.emailNotifications) {
-                await sendReminderEmail(user.email, user.name, {
+            if (user) {
+                // Send web push notification
+                const subscriptionsCollection = db.collection('subscriptions');
+                const userSubscriptions = await subscriptionsCollection.find({ userId: user._id }).toArray();
+                
+                const notificationPayload = JSON.stringify({
                     title: notification.title,
-                    message: notification.message
+                    body: notification.message
                 });
+
+                const pushPromises = userSubscriptions.map(sub => 
+                    webPush.sendNotification(sub.subscription, notificationPayload)
+                        .catch(err => console.error(`[CRON] Error sending push notification to ${user._id}:`, err))
+                );
+
+                await Promise.all(pushPromises);
+
+                // Send email only if the user and their settings are found and email notifications are enabled
+                if (user.settings && user.settings.emailNotifications) {
+                    await sendReminderEmail(user.email, user.name, {
+                        title: notification.title,
+                        message: notification.message
+                    });
+                }
             }
 
             // Update the notification status after sending
