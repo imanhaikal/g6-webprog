@@ -455,6 +455,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        function initializeAllActivities() {
+            displayAllActivities();
+        }
+
+        function initializeAllWorkouts() {
+            displayAllWorkouts();
+        }
+
+        function initializeAllSteps() {
+            displayAllSteps();
+        }
+
         // --- Workout Logger Functions ---
 
         let allTemplates = []; // Cache for storing templates
