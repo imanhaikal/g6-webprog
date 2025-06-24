@@ -2090,3 +2090,200 @@ app.listen(port, '0.0.0.0', () => {
     console.log(`Server running at http://localhost:${port}`);
     console.log(`Accessible on your network at http://<your-local-ip>:${port}`);
 }); 
+
+// GET /api/goal-progress - Fetch user's weight goal progress
+app.get('/api/goal-progress', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    try {
+        const user = await db.collection('users').findOne({ _id: new ObjectId(req.session.user.id) });
+        if (!user) {
+            return res.status(404).send('User not found.');
+        }
+        res.json({
+            currentWeight: user.weight || 0,
+            startWeight: user.startWeight, // Could be undefined if not set
+            goalWeight: user.goalWeight   // Could be undefined if not set
+        });
+    } catch (error) {
+        console.error('Error fetching goal progress:', error);
+        res.status(500).send('Failed to fetch goal progress.');
+    }
+});
+
+// GET /api/weekly-activity - Fetch data for the weekly activity chart
+app.get('/api/weekly-activity', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    const userId = new ObjectId(req.session.user.id);
+    const today = new Date();
+    const last7Days = Array(7).fill(null).map((_, i) => {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        return d;
+    }).reverse();
+
+    const labels = last7Days.map(d => d.toLocaleDateString('en-US', { weekday: 'short' }));
+    
+    try {
+        const promises = last7Days.map(day => {
+            const startOfDay = new Date(day.setHours(0, 0, 0, 0));
+            const endOfDay = new Date(day.setHours(23, 59, 59, 999));
+
+            const stepsPromise = db.collection('steps').aggregate([
+                { $match: { userId, date: { $gte: startOfDay, $lte: endOfDay } } },
+                { $group: { _id: null, total: { $sum: '$steps' } } }
+            ]).toArray();
+
+            const caloriesPromise = db.collection('activities').aggregate([
+                { $match: { userId, date: { $gte: startOfDay, $lte: endOfDay } } },
+                { $group: { _id: null, total: { $sum: '$calories' } } }
+            ]).toArray();
+
+            const workoutsPromise = db.collection('workouts').aggregate([
+                { $match: { userId, date: { $gte: startOfDay, $lte: endOfDay } } },
+                { $group: { _id: null, total: { $sum: '$duration' } } }
+            ]).toArray();
+            
+            return Promise.all([stepsPromise, caloriesPromise, workoutsPromise]);
+        });
+
+        const results = await Promise.all(promises);
+
+        const steps = results.map(r => r[0][0]?.total || 0);
+        const calories = results.map(r => r[1][0]?.total || 0);
+        const workouts = results.map(r => r[2][0]?.total || 0);
+
+        res.json({ labels, steps, calories, workouts });
+
+    } catch (error) {
+        console.error('Error fetching weekly activity:', error);
+        res.status(500).send('Failed to fetch weekly activity data.');
+    }
+});
+
+// GET /api/weight-history - Fetch user's weight history
+app.get('/api/weight-history', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    try {
+        const history = await db.collection('weight_history')
+            .find({ userId: new ObjectId(req.session.user.id) })
+            .sort({ date: 1 }) // Sort by date ascending
+            .toArray();
+        res.json(history);
+    } catch (error) {
+        console.error('Error fetching weight history:', error);
+        res.status(500).send('Failed to fetch weight history.');
+    }
+});
+
+// POST /api/weight-history - Log a new weight entry
+app.post('/api/weight-history', authMiddleware, async (req, res) => {
+    const { weight } = req.body;
+    if (!weight || isNaN(parseFloat(weight))) {
+        return res.status(400).send('Invalid weight provided.');
+    }
+
+    const db = client.db('webprog');
+    const newEntry = {
+        userId: new ObjectId(req.session.user.id),
+        weight: parseFloat(weight),
+        date: new Date()
+    };
+
+    try {
+        await db.collection('weight_history').insertOne(newEntry);
+        // Also update the user's current weight in the users collection
+        await db.collection('users').updateOne(
+            { _id: new ObjectId(req.session.user.id) },
+            { $set: { weight: parseFloat(weight) } }
+        );
+        res.status(201).json(newEntry);
+    } catch (error) {
+        console.error('Error logging new weight:', error);
+        res.status(500).send('Failed to log weight.');
+    }
+});
+
+// GET /api/weekly-comparison - Fetch data for weekly activity comparison chart
+app.get('/api/weekly-comparison', authMiddleware, async (req, res) => {
+    const db = client.db('webprog');
+    const userId = new ObjectId(req.session.user.id);
+
+    const getStartOfWeek = (date) => {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+        return new Date(d.setDate(diff));
+    };
+
+    const today = new Date();
+    const startOfThisWeek = getStartOfWeek(today);
+    startOfThisWeek.setHours(0, 0, 0, 0);
+
+    const startOfLastWeek = new Date(startOfThisWeek);
+    startOfLastWeek.setDate(startOfThisWeek.getDate() - 7);
+
+    const fetchWeekData = async (startDate) => {
+        const weekData = Array(7).fill(0);
+        for (let i = 0; i < 7; i++) {
+            const dayStart = new Date(startDate);
+            dayStart.setDate(startDate.getDate() + i);
+            const dayEnd = new Date(dayStart);
+            dayEnd.setHours(23, 59, 59, 999);
+
+            const result = await db.collection('steps').aggregate([
+                { $match: { userId, date: { $gte: dayStart, $lte: dayEnd } } },
+                { $group: { _id: null, totalSteps: { $sum: '$steps' } } }
+            ]).toArray();
+
+            if (result.length > 0) {
+                weekData[i] = result[0].totalSteps;
+            }
+        }
+        return weekData;
+    };
+
+    try {
+        const thisWeekData = await fetchWeekData(startOfThisWeek);
+        const lastWeekData = await fetchWeekData(startOfLastWeek);
+
+        res.json({
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            thisWeek: thisWeekData,
+            lastWeek: lastWeekData
+        });
+
+    } catch (error) {
+        console.error('Error fetching weekly comparison data:', error);
+        res.status(500).send('Failed to fetch comparison data.');
+    }
+});
+
+// PUT /api/profile/goal - Set or update a user's weight goal
+app.put('/api/profile/goal', authMiddleware, async (req, res) => {
+    const { goalWeight } = req.body;
+    if (!goalWeight || isNaN(parseFloat(goalWeight))) {
+        return res.status(400).send('Invalid goal weight provided.');
+    }
+
+    const db = client.db('webprog');
+    try {
+        const user = await db.collection('users').findOne({ _id: new ObjectId(req.session.user.id) });
+        if (!user) {
+            return res.status(404).send('User not found.');
+        }
+
+        await db.collection('users').updateOne(
+            { _id: new ObjectId(req.session.user.id) },
+            { 
+                $set: { 
+                    goalWeight: parseFloat(goalWeight),
+                    startWeight: user.weight // Set start weight to current weight when goal is set
+                } 
+            }
+        );
+        res.json({ message: 'Goal updated successfully.' });
+    } catch (error) {
+        console.error('Error updating weight goal:', error);
+        res.status(500).send('Failed to update goal.');
+    }
+});

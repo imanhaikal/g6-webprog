@@ -105,11 +105,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         userProfilePicture.src = `https://i.pravatar.cc/40?u=${user.username}`;
                     }
                 }
-
-                return user;
             } catch (error) {
-                console.error('Error loading user profile:', error);
-                return null;
+                console.error('Error loading user profile for header:', error);
+                // Don't show an alert, just log it, as this is a non-critical part of the UI
             }
         }
 
@@ -228,15 +226,28 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         // Initialize charts if we're on the progress page
                         if (page === 'progress') {
-                            initializeCharts();
+                            initializeProgressPage();
                         }
 
                         // Initialize weekly activity chart if we're on the dashboard page
                         if (page === 'dashboard') {
+                            // Dynamically load the chart script, then initialize the page
+                            const scriptId = 'dashboard-charts-script';
+                            document.getElementById(scriptId)?.remove(); // Remove to ensure it reloads if needed
+
                             const script = document.createElement('script');
+                            script.id = scriptId;
                             script.src = 'js/dashboard-charts.js';
                             script.onload = () => {
-                            initializeDashboardCharts();
+                                console.log('Dashboard charts script loaded successfully.');
+                                initializeDashboardPage();
+                            };
+                            script.onerror = () => {
+                                console.error('Error loading the dashboard charts script.');
+                                const chartContainer = document.getElementById('weeklyActivityChart')?.parentElement;
+                                if (chartContainer) {
+                                    chartContainer.innerHTML = '<div class="text-center text-danger">A script required for charts failed to load.</div>';
+                                }
                             };
                             document.body.appendChild(script);
                         }
@@ -271,17 +282,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             initializeNutritionPage();
                         }
 
-                        // Initialize notifications page
-                        if (page === 'notifications') {
-                            initializeNotificationsPage();
-                        }
-
                         // Initialize profile page
                         if (page === 'profile') {
                             initializeProfilePage();
                             initializeAccountDeletion();
                             handlePasswordUpdate();
                             handleSession();
+                        }
+
+                        // Initialize notifications page
+                        if (page === 'notifications') {
+                            initializeNotificationsPage();
                         }
                     } else {
                         throw new Error('Content element not found in the loaded page');
@@ -299,44 +310,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
         }
 
-        // Function to initialize dashboard charts
-        function initializeDashboardCharts() {
-            console.log('Initializing dashboard charts...');
+        // Function to initialize all components on the dashboard page
+        async function initializeDashboardPage() {
+            // Fetch all dashboard data in parallel
+            await Promise.all([
+                fetchTodaySteps(),
+                fetchTodayCalories(),
+                fetchUpcomingWorkout(),
+                fetchWeeklyActivity() // This function will now handle its own chart rendering
+            ]);
             
-            // Fetch today's steps and calories
-            fetchTodaySteps();
-            fetchTodayCalories();
-            fetchUpcomingWorkout();
-
-            // Handle the weekly activity chart
-            const weeklyChartCanvas = document.getElementById('weeklyActivityChart');
-            if (weeklyChartCanvas) {
-                try {
-                    // Initialize the chart with empty data
-                    initWeeklyActivityChart();
-                    
-                    // Fetch the data to populate it
-                    fetchWeeklyActivity();
-            
-                    // Add event listeners for the metric buttons to update the chart
-                    document.querySelectorAll('.btn-group[role="group"] .btn').forEach(button => {
-                        button.addEventListener('click', function() {
-                            // Update all buttons to be inactive/outline style
-                            document.querySelectorAll('.btn-group[role="group"] .btn').forEach(btn => {
-                                btn.classList.remove('active', 'btn-primary');
-                                btn.classList.add('btn-outline-primary');
-                            });
-                            
-                            // Make the clicked button active/solid style
-                            this.classList.add('active', 'btn-primary');
-                            this.classList.remove('btn-outline-primary');
-
-                            updateChart(this.getAttribute('data-metric'));
+            // Add event listeners for the metric buttons to update the chart
+            const metricButtons = document.querySelectorAll('.btn-group[role="group"] .btn[data-metric]');
+            if (metricButtons.length > 0) {
+                metricButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        // Update active styles
+                        metricButtons.forEach(btn => {
+                            btn.classList.remove('active', 'btn-primary');
+                            btn.classList.add('btn-outline-primary');
                         });
+                        this.classList.add('active', 'btn-primary');
+                        this.classList.remove('btn-outline-primary');
+                        
+                        // Update the chart view
+                        updateChart(this.getAttribute('data-metric'));
                     });
-                } catch (error) {
-                    console.error('Error setting up weekly activity chart:', error);
-                }
+                });
             }
         }
 
@@ -406,114 +406,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Update the chart
                 chart.update();
-        }
-
-        // Function to initialize charts
-        function initializeCharts() {
-            // Goal Progress
-            if (document.getElementById('goalChart')) {
-                new Chart(document.getElementById('goalChart'), {
-                    type: 'doughnut',
-                    data: {
-                      labels: ['Completed', 'Remaining'],
-                      datasets: [{
-                        data: [75, 25],
-                        backgroundColor: ['#28a745', '#ddd']
-                      }]
-                    },
-                    options: {
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: {
-                          position: 'top',
-                        }
-                      }
-                    }
-                });
-            }
-            
-            // Weekly Comparison
-            if (document.getElementById('weeklyChart')) {
-                new Chart(document.getElementById('weeklyChart'), {
-                    type: 'bar',
-                    data: {
-                      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                      datasets: [{
-                        label: 'This Week',
-                        backgroundColor: '#007bff',
-                        data: [3000, 5000, 4000, 6500, 7000, 8000, 7500]
-                      }, {
-                        label: 'Last Week',
-                        backgroundColor: '#6c757d',
-                        data: [2500, 4200, 3900, 6000, 6700, 7000, 7200]
-                      }]
-                    },
-                    options: {
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      scales: {
-                        y: { 
-                          beginAtZero: true,
-                          grid: {
-                            display: true
-                          }
-                        },
-                        x: {
-                          grid: {
-                            display: false
-                          }
-                        }
-                      },
-                      plugins: {
-                        legend: {
-                          position: 'top',
-                          align: 'center'
-                        }
-                      }
-                    }
-                });
-            }
-            
-            // Weight Tracker
-            if (document.getElementById('weightChart')) {
-                new Chart(document.getElementById('weightChart'), {
-                    type: 'line',
-                    data: {
-                      labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-                      datasets: [{
-                        label: 'Weight (kg)',
-                        borderColor: '#dc3545',
-                        data: [70, 69.5, 69, 68.7],
-                        fill: false,
-                        tension: 0.2,
-                        pointBackgroundColor: '#dc3545'
-                      }]
-                    },
-                    options: {
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      scales: {
-                        y: {
-                          beginAtZero: false,
-                          grid: {
-                            display: true
-                          }
-                        },
-                        x: {
-                          grid: {
-                            display: false
-                          }
-                        }
-                      },
-                      plugins: {
-                        legend: {
-                          position: 'top'
-                        }
-                      }
-                    }
-                });
-            }
         }
 
         // Function to initialize fitness tracker-specific logic
@@ -1767,7 +1659,6 @@ document.addEventListener('DOMContentLoaded', () => {
         async function initializeProfilePage() {
             const profileForm = document.getElementById('updateProfileForm');
             const changePasswordForm = document.getElementById('changePasswordForm');
-            console.trace("initializeProfilePage called from:");
             
             try {
                 const response = await fetch('/api/profile');
@@ -1793,9 +1684,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // --- BMI-based Goal Setting ---
                 const setFitnessGoal = () => {
-                    const weight = parseFloat(document.getElementById('profileWeight').value);
-                    const height = parseFloat(document.getElementById('profileHeight').value);
+                    const weightInput = document.getElementById('profileWeight');
+                    const heightInput = document.getElementById('profileHeight');
                     const goalsSelect = document.getElementById('profileGoals');
+
+                    if (!weightInput || !heightInput || !goalsSelect) return;
+
+                    const weight = parseFloat(weightInput.value);
+                    const height = parseFloat(heightInput.value);
 
                     if (weight > 0 && height > 0) {
                         const heightInMeters = height / 100;
@@ -1811,16 +1707,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 };
                 
-                if (user.goals) {
-                    document.getElementById('profileGoals').value = user.goals;
-                } else {
-                    setFitnessGoal();
-                }
-
-                 // Add event listeners for real-time updates
-                 document.getElementById('profileWeight').addEventListener('input', setFitnessGoal);
-                 document.getElementById('profileHeight').addEventListener('input', setFitnessGoal);
-
+                // Set initial goal based on the loaded weight and height
+                setFitnessGoal();
+                
+                // Add event listeners for real-time updates
+                document.getElementById('profileWeight').addEventListener('input', setFitnessGoal);
+                document.getElementById('profileHeight').addEventListener('input', setFitnessGoal);
 
             } catch (error) {
                 console.error('Error loading profile:', error);
@@ -1919,166 +1811,385 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async function fetchWeeklyActivity() {
             try {
-                const response = await fetch('/weekly-activity');
+                const response = await fetch('/api/weekly-activity');
                 if (!response.ok) {
                     throw new Error('Failed to fetch weekly activity data');
                 }
                 const data = await response.json();
                 
-                // Update the chart data
+                // Initialize the chart with the fetched data
+                initWeeklyActivityChart(); // This function is in dashboard-charts.js
+                
                 const weeklyChart = window.weeklyActivityChart;
                 if (weeklyChart) {
                     weeklyChart.data.labels = data.labels;
-                    // Store all data sets and update the visible one
                     window.chartData.steps.data = data.steps;
                     window.chartData.calories.data = data.calories;
                     window.chartData.workouts.data = data.workouts;
 
-                    // Get the currently active metric
+                    // Get the currently active metric to display first
                     const activeMetric = document.querySelector('.btn-group[role="group"] .btn.active')?.dataset.metric || 'steps';
-                    updateChart(activeMetric); // This function is in dashboard-charts.js
+                    updateChart(activeMetric);
                 }
 
             } catch (error) {
                 console.error("Error fetching weekly activity:", error);
+                // Optionally display an error message in the chart's container
+                const chartContainer = document.getElementById('weeklyActivityChart')?.parentElement;
+                if (chartContainer) {
+                    chartContainer.innerHTML = '<div class="text-center text-danger">Could not load weekly activity.</div>';
+                }
             }
         }
 
         async function initializeNotificationsPage() {
-            // --- Elements ---
-            const emailSwitch = document.getElementById('emailNotificationSwitch');
-            const dailyReminderForm = document.getElementById('dailyReminderForm');
+            console.log('Initializing Notifications Page...');
+
+            // --- Element selectors ---
+            const webPushSwitch = document.getElementById('webPushSwitch');
+            const inAppReminderSwitch = document.getElementById('inAppReminderSwitch');
+            const emailNotificationSwitch = document.getElementById('emailNotificationSwitch');
+            const reminderForm = document.getElementById('dailyReminderForm');
             const customReminderForm = document.getElementById('customReminderForm');
             const remindersList = document.getElementById('remindersList');
+            const editReminderForm = document.getElementById('editReminderForm');
 
-            // --- Load and Set Initial State for Toggles ---
-            try {
-                const response = await fetch('/api/profile');
-                if (!response.ok) throw new Error('Could not fetch user settings.');
-                const user = await response.json();
-                if (emailSwitch) {
-                    emailSwitch.checked = user.settings && user.settings.emailNotifications;
+            // --- State variables ---
+            let reminders = [];
+
+            // --- Functions ---
+            const VAPID_PUBLIC_KEY = 'BB1ps-PnF3YWgbDclyhlX7T-IszmPZGMTYfydgEF6iOuuY3Ke7hf2YNqbzikNOR_Yg9DUzEGtRhcoX49tSCrqeE';
+
+            function urlBase64ToUint8Array(base64String) {
+                const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+                const rawData = window.atob(base64);
+                const outputArray = new Uint8Array(rawData.length);
+                for (let i = 0; i < rawData.length; ++i) {
+                    outputArray[i] = rawData.charCodeAt(i);
                 }
-            } catch (error) {
-                console.error('Error loading notification settings:', error);
-                if (emailSwitch) emailSwitch.disabled = true;
+                return outputArray;
             }
 
-            // --- Event Listener for Email Toggle ---
-            if (emailSwitch) {
-                emailSwitch.addEventListener('change', async () => {
+            async function subscribeUser() {
+                if ('serviceWorker' in navigator && 'PushManager' in window) {
                     try {
-                        const updateResponse = await fetch('/api/profile/settings', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ emailNotifications: emailSwitch.checked })
+                        if (Notification.permission === 'denied') {
+                            alert('You have blocked notifications. To receive them, please enable notifications for this site in your browser settings.');
+                            webPushSwitch.checked = false;
+                            return;
+                        }
+
+                        const registration = await navigator.serviceWorker.register('/sw.js');
+                        const subscription = await registration.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
                         });
-                        if (!updateResponse.ok) throw new Error('Failed to update settings.');
-                        console.log('Notification settings updated.');
+
+                        await fetch('/subscribe', {
+                            method: 'POST', body: JSON.stringify(subscription), headers: { 'Content-Type': 'application/json' }
+                        });
+                        alert('Successfully subscribed to push notifications!');
                     } catch (error) {
-                        console.error('Error updating settings:', error);
-                        emailSwitch.checked = !emailSwitch.checked; // Revert on error
-                        alert('Could not save your setting. Please try again.');
+                        console.error('Failed to subscribe the user: ', error);
+                        webPushSwitch.checked = false;
+                    }
+                }
+            }
+            
+            async function unsubscribeUser() {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    const subscription = await registration.pushManager.getSubscription();
+                    if (subscription) {
+                        await subscription.unsubscribe();
+                    }
+                    await fetch('/unsubscribe', { method: 'POST' });
+                    alert('Unsubscribed from push notifications.');
+                } catch (error) {
+                    console.error('Error unsubscribing:', error);
+                    webPushSwitch.checked = true; // Revert switch on failure
+                }
+            }
+
+            function saveReminders() {
+                const customReminders = reminders.filter(r => r.type !== 'daily');
+                localStorage.setItem('reminders', JSON.stringify(customReminders));
+            }
+
+            function renderReminders() {
+                if (!remindersList) return;
+                remindersList.innerHTML = '';
+                reminders.sort((a, b) => {
+                    const timeA = a.schedule.type === 'daily' ? a.schedule.value : new Date(a.schedule.value);
+                    const timeB = b.schedule.type === 'daily' ? b.schedule.value : new Date(b.schedule.value);
+                    
+                    // Basic sort for now, can be improved
+                    if (timeA < timeB) return -1;
+                    if (timeA > timeB) return 1;
+                    return 0;
+                });
+
+                reminders.forEach((reminder) => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    listItem.dataset.id = reminder._id;
+                    const isEnabled = typeof reminder.isEnabled === 'boolean' ? reminder.isEnabled : true;
+                    
+                    let displayTime = '';
+                    if (reminder.schedule.type === 'daily') {
+                        displayTime = `${reminder.schedule.value} (Daily)`;
+                    } else {
+                        displayTime = new Date(reminder.schedule.value).toLocaleString();
+                    }
+
+                    listItem.innerHTML = `
+                        <div class="reminder-info">
+                            <strong>${reminder.title}</strong> - ${displayTime}
+                            <div class="text-muted small">${reminder.message || ''}</div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="form-check form-switch me-3">
+                                <input class="form-check-input reminder-toggle-switch" type="checkbox" role="switch" ${isEnabled ? 'checked' : ''}>
+                            </div>
+                            <button class="btn btn-info btn-sm me-2 edit-notification-btn">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm delete-notification-btn">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>`;
+                    remindersList.appendChild(listItem);
+                });
+            }
+
+            function scheduleReminders() {
+                for (let i = 1; i < 99999; i++) { window.clearTimeout(i); }
+                reminders.forEach(reminder => {
+                    if (reminder.type === 'custom') {
+                        const now = new Date();
+                        const reminderTime = new Date(reminder.time);
+                        if (reminderTime > now) {
+                            const timeout = reminderTime.getTime() - now.getTime();
+                            setTimeout(() => {
+                                if (localStorage.getItem('inAppRemindersEnabled') === 'true') {
+                                    alert(`Reminder: ${reminder.text}`);
+                                }
+                                reminders = reminders.filter(r => r.time !== reminder.time);
+                                saveReminders();
+                                renderReminders();
+                            }, timeout);
+                        }
                     }
                 });
             }
 
-            // --- Reminder Logic ---
-            async function addReminder(payload) {
+            async function loadInitialState() {
                 try {
-                    const response = await fetch('/api/schedule-notification', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    if (response.ok) {
-                        loadReminders(); // Refresh the list
-                    } else {
-                        alert('Failed to set reminder.');
+                    const response = await fetch('/api/profile');
+                    const profile = response.ok ? await response.json() : {};
+                    if (profile.settings) {
+                        emailNotificationSwitch.checked = profile.settings.emailNotifications;
                     }
-                } catch (error) {
-                    console.error('Error setting reminder:', error);
-                }
-            }
+                } catch (e) { console.error('Error fetching profile settings:', e); }
 
-            async function loadReminders() {
+                const registration = await navigator.serviceWorker.ready;
+                webPushSwitch.checked = !!(await registration.pushManager.getSubscription());
+                inAppReminderSwitch.checked = localStorage.getItem('inAppRemindersEnabled') !== 'false'; // Default to true
+
                 try {
                     const response = await fetch('/api/scheduled-notifications');
-                    const reminders = await response.json();
-                    remindersList.innerHTML = '';
-                    reminders.forEach(reminder => {
-                        const listItem = document.createElement('li');
-                        listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-                        
-                        let displayText = `<strong>${reminder.title}</strong> - `;
-                        if (reminder.schedule.type === 'daily') {
-                            displayText += `Daily at ${reminder.schedule.value}`;
-                        } else {
-                            displayText += new Date(reminder.schedule.value).toLocaleString();
-                        }
-
-                        listItem.innerHTML = `
-                            <div>${displayText}</div>
-                            <button class="btn btn-danger btn-sm delete-reminder" data-id="${reminder._id}">Delete</button>
-                        `;
-                        remindersList.appendChild(listItem);
-                    });
-                } catch (error) {
-                    console.error('Error loading reminders:', error);
+                    reminders = response.ok ? await response.json() : [];
+                } catch (e) {
+                    console.error('Error fetching server reminders:', e);
+                    reminders = [];
                 }
+                renderReminders();
             }
 
-            if (dailyReminderForm) {
-                dailyReminderForm.addEventListener('submit', function(event) {
-                    event.preventDefault();
-                    const reminderText = document.getElementById('reminderText').value;
-                    const reminderTime = document.getElementById('reminderTime').value;
-                    if (reminderText && reminderTime) {
-                        addReminder({
-                            title: reminderText,
-                            message: reminderText,
-                            schedule: { type: 'daily', value: reminderTime }
-                        });
-                        dailyReminderForm.reset();
-                    }
-                });
-            }
-
-            if (customReminderForm) {
-                customReminderForm.addEventListener('submit', function(event) {
-                    event.preventDefault();
-                    const reminderText = document.getElementById('customReminderText').value;
-                    const reminderTime = document.getElementById('customReminderTime').value;
-                    if (reminderText && reminderTime) {
-                        addReminder({
-                            title: reminderText,
-                            message: reminderText,
-                            schedule: { type: 'one-time', value: reminderTime }
-                        });
-                        customReminderForm.reset();
-                    }
-                });
-            }
-
-            remindersList.addEventListener('click', async function(event) {
-                if (event.target.classList.contains('delete-reminder')) {
-                    const reminderId = event.target.dataset.id;
-                    try {
-                        const response = await fetch(`/api/cancel-notification/${reminderId}`, { method: 'DELETE' });
-                        if (response.ok) {
-                            loadReminders(); // Refresh list after deletion
-                        } else {
-                            alert('Failed to delete reminder.');
-                        }
-                    } catch (error) {
-                        console.error('Error deleting reminder:', error);
+            // --- Event Listeners ---
+            
+            // Listen for messages from the Service Worker
+            navigator.serviceWorker.addEventListener('message', event => {
+                if (event.data && event.data.type === 'show-in-app-alert') {
+                    // Check if in-app reminders are enabled before showing alert
+                    if (localStorage.getItem('inAppRemindersEnabled') !== 'false') {
+                        alert(`Reminder: ${event.data.payload.title}\n\n${event.data.payload.body}`);
                     }
                 }
             });
 
-            loadReminders(); // Initial load of reminders
+            webPushSwitch.addEventListener('change', () => webPushSwitch.checked ? subscribeUser() : unsubscribeUser());
+            inAppReminderSwitch.addEventListener('change', () => localStorage.setItem('inAppRemindersEnabled', inAppReminderSwitch.checked));
+            emailNotificationSwitch.addEventListener('change', async () => {
+                try {
+                    await fetch('/api/profile/settings', {
+                        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ emailNotifications: emailNotificationSwitch.checked })
+                    });
+                } catch (e) {
+                    console.error('Error updating email settings:', e);
+                    emailNotificationSwitch.checked = !emailNotificationSwitch.checked;
+                }
+            });
+
+            reminderForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const title = reminderForm.querySelector('#reminderText').value || "Daily Reminder";
+                const message = reminderForm.querySelector('#reminderText').value;
+                const time = reminderForm.querySelector('#reminderTime').value;
+                if (!message || !time) return;
+                const payload = {
+                    title,
+                    message,
+                    schedule: { type: 'daily', value: time }
+                };
+                try {
+                    const response = await fetch('/api/schedule-notification', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (response.ok) {
+                        const newNotification = await response.json();
+                        reminders.push(newNotification);
+                        renderReminders();
+                        reminderForm.reset();
+                    } else { alert('Failed to schedule notification.'); }
+                } catch (error) { console.error(error); }
+            });
+
+            customReminderForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const message = customReminderForm.querySelector('#customReminderText').value;
+                const dateTime = customReminderForm.querySelector('#customReminderTime').value;
+                if (!message || !dateTime) return;
+                const payload = {
+                    title: message, // Use message as title for one-time alerts
+                    message,
+                    schedule: { type: 'one-time', value: new Date(dateTime).toISOString() }
+                };
+                try {
+                    const response = await fetch('/api/schedule-notification', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (response.ok) {
+                        const newNotification = await response.json();
+                        reminders.push(newNotification);
+                        renderReminders();
+                        customReminderForm.reset();
+                    } else { alert('Failed to schedule one-time reminder.'); }
+                } catch (error) { console.error(error); }
+            });
+
+            remindersList.addEventListener('click', async (event) => {
+                const deleteNotificationBtn = event.target.closest('.delete-notification-btn');
+                const editNotificationBtn = event.target.closest('.edit-notification-btn');
+
+                if (editNotificationBtn) {
+                    const listItem = editNotificationBtn.closest('li[data-id]');
+                    const notificationId = listItem.dataset.id;
+                    const reminder = reminders.find(r => r._id === notificationId);
+
+                    if (reminder) {
+                        // For simplicity, we use the same modal and just show/hide date/time fields
+                        // A more robust solution might use two modals or dynamic form generation
+                        document.getElementById('editReminderId').value = reminder._id;
+                        document.getElementById('editReminderText').value = reminder.message;
+                        
+                        // For now, we only support editing daily reminders' time in this modal
+                        // A future improvement would be a more adaptive modal
+                        document.getElementById('editReminderTime').value = reminder.schedule.type === 'daily' ? reminder.schedule.value : '';
+
+                        const modal = new bootstrap.Modal(document.getElementById('editReminderModal'));
+                        modal.show();
+                    }
+                } else if (deleteNotificationBtn) {
+                    const listItem = deleteNotificationBtn.closest('li[data-id]');
+                    const notificationId = listItem.dataset.id;
+                    if (confirm('Are you sure you want to delete this scheduled reminder?')) {
+                        try {
+                            await fetch(`/api/cancel-notification/${notificationId}`, { method: 'DELETE' });
+                            reminders = reminders.filter(r => r._id !== notificationId);
+                            renderReminders();
+                        } catch (error) { console.error('Error deleting notification:', error); }
+                    }
+                }
+            });
+
+            if(editReminderForm) {
+                editReminderForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const id = document.getElementById('editReminderId').value;
+                    const message = document.getElementById('editReminderText').value;
+                    const time = document.getElementById('editReminderTime').value;
+                    const reminder = reminders.find(r => r._id === id);
+                    
+                    if (!reminder) return alert('Could not find original reminder to update.');
+
+                    const payload = {
+                        title: message, // Update title to match message
+                        message,
+                        schedule: { ...reminder.schedule } // Copy original schedule
+                    };
+
+                    // Only update time for daily reminders in this modal
+                    if (payload.schedule.type === 'daily') {
+                        payload.schedule.value = time;
+                    }
+
+                    try {
+                        const response = await fetch(`/api/schedule-notification/${id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (response.ok) {
+                            // Update local state
+                            const updatedReminder = await response.json(); // Assuming server returns updated doc
+                            const index = reminders.findIndex(r => r._id === id);
+                            if (index !== -1) {
+                                 reminders[index] = { ...reminders[index], ...payload };
+                            }
+                            renderReminders();
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('editReminderModal'));
+                            modal.hide();
+                        } else {
+                            alert('Failed to update the reminder. Please try again.');
+                        }
+                    } catch (error) {
+                        console.error('Error updating reminder:', error);
+                        alert('An error occurred while updating the reminder.');
+                    }
+                });
+            }
+
+            loadInitialState();
         }
 
+        async function fetchUpcomingWorkout() {
+            try {
+                const response = await fetch('/upcoming-workout');
+                if (!response.ok) {
+                    throw new Error('Server responded with an error');
+                }
+                const data = await response.json();
+
+                const timeEl = document.getElementById('upcoming-workout-time');
+                const titleEl = document.getElementById('upcoming-workout-title');
+
+                if (data.found) {
+                    timeEl.innerHTML = `<i class="bi bi-calendar-event"></i> ${data.day}, ${data.time}`;
+                    titleEl.textContent = data.title;
+                } else {
+                    timeEl.innerHTML = `<i class="bi bi-calendar-event"></i> No workouts scheduled`;
+                    titleEl.textContent = "Enjoy your rest day!";
+                }
+            } catch (error) {
+                console.error('Error fetching upcoming workout:', error);
+            }
+        }
         async function initializeAccountDeletion() {
     const isProfilePage = document.getElementById('updateProfileForm') !== null;
     if (!isProfilePage) return;
@@ -2788,4 +2899,243 @@ async function handleSession() {
     } catch (error) {
         console.error('Error setting up session logout handlers:', error);
     }
+}
+
+// Function to initialize the progress page charts and forms
+async function initializeProgressPage() {
+    let goalChartInstance = null;
+    let weightChartInstance = null;
+    let weeklyComparisonChartInstance = null;
+
+    async function updateGoalChart() {
+        try {
+            const response = await fetch('/api/goal-progress');
+            if (!response.ok) throw new Error('Could not fetch goal progress.');
+            const data = await response.json();
+
+            const { startWeight, currentWeight, goalWeight } = data;
+            let percentageComplete = 0;
+
+            if (startWeight != null && goalWeight != null && startWeight !== goalWeight) {
+                const totalWeightChange = Math.abs(startWeight - goalWeight);
+                const weightChanged = startWeight - currentWeight;
+                percentageComplete = Math.max(0, Math.min(100, (weightChanged / (startWeight - goalWeight)) * 100));
+            }
+            
+            const ctx = document.getElementById('goalChart')?.getContext('2d');
+            if (!ctx) return;
+
+            if (goalChartInstance) {
+                goalChartInstance.data.datasets[0].data = [percentageComplete, 100 - percentageComplete];
+                goalChartInstance.update();
+            } else {
+                goalChartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Completed', 'Remaining'],
+                        datasets: [{
+                            data: [percentageComplete, 100 - percentageComplete],
+                            backgroundColor: ['#28a745', '#e9ecef'],
+                            borderColor: ['#fff', '#fff'],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.label}: ${context.raw.toFixed(1)}%`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error updating goal chart:', error);
+        }
+    }
+
+    async function updateWeightTrackerChart() {
+        try {
+            const response = await fetch('/api/weight-history');
+            if (!response.ok) throw new Error('Could not fetch weight history.');
+            const history = await response.json();
+
+            const labels = history.map(entry => new Date(entry.date).toLocaleDateString());
+            const data = history.map(entry => entry.weight);
+
+            const ctx = document.getElementById('weightChart')?.getContext('2d');
+            if (!ctx) return;
+
+            if (weightChartInstance) {
+                weightChartInstance.data.labels = labels;
+                weightChartInstance.data.datasets[0].data = data;
+                weightChartInstance.update();
+            } else {
+                weightChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Weight (kg)',
+                            data: data,
+                            borderColor: '#dc3545',
+                            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                            fill: true,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: false }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error updating weight chart:', error);
+        }
+    }
+    
+    async function updateWeeklyComparisonChart() {
+        try {
+            const response = await fetch('/api/weekly-comparison');
+            if (!response.ok) throw new Error('Could not fetch weekly comparison data.');
+            const data = await response.json();
+
+            const ctx = document.getElementById('weeklyChart')?.getContext('2d');
+            if (!ctx) return;
+
+            if (weeklyComparisonChartInstance) {
+                weeklyComparisonChartInstance.data.datasets[0].data = data.thisWeek;
+                weeklyComparisonChartInstance.data.datasets[1].data = data.lastWeek;
+                weeklyComparisonChartInstance.update();
+            } else {
+                weeklyComparisonChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'This Week',
+                            data: data.thisWeek,
+                            backgroundColor: '#007bff',
+                            borderColor: '#007bff',
+                        }, {
+                            label: 'Last Week',
+                            data: data.lastWeek,
+                            backgroundColor: '#6c757d',
+                            borderColor: '#6c757d',
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error updating weekly comparison chart:', error);
+        }
+    }
+
+    // --- Event Listeners ---
+    const goalForm = document.getElementById('goalForm');
+    if (goalForm) {
+        goalForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const goalWeightInput = document.getElementById('goalWeightInput');
+            const goalWeight = goalWeightInput.value;
+            if (!goalWeight) return;
+
+            try {
+                const response = await fetch('/api/profile/goal', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ goalWeight: parseFloat(goalWeight) })
+                });
+
+                if (response.ok) {
+                    alert('Goal updated successfully!');
+                    goalForm.reset();
+                    await updateGoalChart();
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Failed to update goal.');
+                }
+            } catch (error) {
+                console.error('Error setting goal:', error);
+                alert(`Error: ${error.message}`);
+            }
+        });
+    }
+
+    const weightLogForm = document.getElementById('weightLogForm');
+    if (weightLogForm) {
+        weightLogForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const weightInput = document.getElementById('weightInput');
+            const weight = weightInput.value;
+            if (!weight) return;
+
+            try {
+                const response = await fetch('/api/weight-history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ weight: parseFloat(weight) })
+                });
+
+                if (response.ok) {
+                    weightLogForm.reset();
+                    await updateWeightTrackerChart();
+                    await updateGoalChart();
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Failed to log weight.');
+                }
+            } catch (error) {
+                console.error('Error logging weight:', error);
+                alert(`Error: ${error.message}`);
+            }
+        });
+    }
+
+    // Initial chart loads
+    updateGoalChart();
+    updateWeightTrackerChart();
+    updateWeeklyComparisonChart();
+}
+
+// Function to update the chart based on selected metric
+function updateChart(metric) {
+    if (!window.weeklyActivityChart) {
+        initWeeklyActivityChart();
+    }
+    // ... existing code ...
 }
