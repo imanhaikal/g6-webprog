@@ -1,11 +1,14 @@
 # Health & Fitness Tracker
 
-This is a web application designed to help users track their health and fitness goals. It includes features for monitoring nutrition, workouts, progress, and more.
+This is a comprehensive web application designed to help users track their health and fitness goals. It features an intuitive interface for monitoring nutrition, workouts, steps, progress, and more - all in one place with personalized insights.
+
+![App Screenshot](img/ss1.png)
 
 ## Table of Contents
 - [Health & Fitness Tracker](#health--fitness-tracker)
   - [Table of Contents](#table-of-contents)
   - [Key Features](#key-features)
+  - [Screenshots](#screenshots)
   - [Technologies Used](#technologies-used)
   - [Prerequisites](#prerequisites)
   - [Getting Started](#getting-started)
@@ -17,6 +20,8 @@ This is a web application designed to help users track their health and fitness 
     - [Text: Dark Charcoal Gray (Readable & Soft Contrast)](#text-dark-charcoal-gray-readable--soft-contrast)
   - [CSS Implementation](#css-implementation)
   - [Usage](#usage)
+  - [API Endpoints](#api-endpoints)
+  - [Documentation](#documentation)
   - [Contributors](#contributors)
 
 
@@ -28,6 +33,7 @@ This is a web application designed to help users track their health and fitness 
     - Log different types of activities (cardio, strength, etc.).
     - Create and manage workout routines with specific exercises.
     - Full CRUD (Create, Read, Update, Delete) functionality for all entries.
+    - Track workout streaks to stay motivated.
 - **Steps Tracking & Route Finder**:
     - Manually log steps, distance, and duration.
     - **Automatic Step Calculation**: Estimates steps based on user's height, distance, and duration.
@@ -36,33 +42,68 @@ This is a web application designed to help users track their health and fitness 
 - **Nutrition Tracking**:
     - Log meals and track calorie intake.
     - Upload pictures of meals.
+    - View daily nutrition summaries and trends.
+- **Weight & Progress Tracking**:
+    - Log weight entries over time.
+    - Interactive charts to visualize progress.
+- **Comprehensive Notification System**:
+    - Web Push Notifications for real-time alerts.
+    - Scheduled Notifications/Reminders that can be customized.
+    - Email notifications for important reminders.
 - **Profile Management**:
     - View and update user profile information (name, age, height, weight).
     - Upload a profile picture.
     - Securely change passwords.
+    - Configure notification preferences.
 - **Progress Visualization**:
     - Interactive charts and graphs to monitor progress over time (e.g., weight, calories).
-- **Notifications**:
-    - Receive reminders and notifications.
 - **Responsive Design**:
     - Collapsible sidebar for a seamless experience on mobile devices.
     - Fully responsive layout that adapts to all screen sizes.
 
+## Screenshots
+
+Here are some screenshots of the application:
+
+![Dashboard](img/ss1.png)
+![Fitness Tracking](img/ss2.png)
+![Nutrition Tracking](img/ss3.png)
+![Profile Management](img/ss4.png)
+
 ## Technologies Used
 
-- **Frontend**: HTML, CSS, JavaScript
-- **Backend**: Node.js, Express.js
-- **Database**: MongoDB (with Mongoose)
-- **Authentication**: bcrypt, express-session
-- **Push Notifications**: web-push
-- **File Uploads**: multer
-- **Development**: nodemon
+- **Frontend**: 
+  - HTML, CSS, JavaScript
+  - Bootstrap 5 (responsive design)
+  - Chart.js (data visualization)
+- **Backend**: 
+  - Node.js, Express.js
+  - RESTful API architecture
+- **Database**: 
+  - MongoDB (with native driver)
+  - connect-mongo (session storage)
+- **Authentication**: 
+  - bcrypt (password hashing)
+  - express-session (session management)
+- **Notifications**: 
+  - web-push (browser notifications)
+  - nodemailer (email notifications)
+  - node-cron (scheduled tasks)
+- **File Uploads**: 
+  - multer
+- **External APIs**:
+  - Mapbox (route finding)
+- **Development**: 
+  - nodemon (auto-reloading)
+  - dotenv (environment variables)
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) (which includes npm)
-- [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) account for the database.
-- [Mapbox Account](https://www.mapbox.com/) for the route finder functionality.
+- [Node.js](https://nodejs.org/) (v14+)
+- [npm](https://www.npmjs.com/)
+- [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) account for the database
+- [Mapbox Account](https://www.mapbox.com/) for the route finder functionality
+- Gmail account (for sending email notifications)
 
 ## Getting Started
 
@@ -79,12 +120,24 @@ This is a web application designed to help users track their health and fitness 
 
 3.  **Set up your environment:**
     - Create a `.env` file in the root of the project.
-    - Add your MongoDB Atlas connection string and other required variables. You can refer to `.env.example` if it exists, or add the following:
+    - Add your MongoDB Atlas connection string and other required variables:
       ```
-      MONGO_URI="your_mongodb_connection_string"
-      SESSION_SECRET="your_session_secret"
-      VAPID_PUBLIC_KEY="your_vapid_public_key"
-      VAPID_PRIVATE_KEY="your_vapid_private_key"
+      # MongoDB Atlas connection string
+      MONGO_URI="mongodb+srv://<username>:<password>@your-cluster-url"
+
+      # Secret key for signing session cookies
+      SESSION_SECRET="your_strong_session_secret"
+
+      # VAPID keys for Web Push Notifications (generate with `npm run vapi`)
+      VAPID_PUBLIC_KEY="your_public_vapid_key"
+      VAPID_PRIVATE_KEY="your_private_vapid_key"
+      
+      # Gmail credentials for sending email notifications
+      GMAIL_USER="your_gmail_address@gmail.com"
+      GMAIL_APP_PASS="your_gmail_app_password"
+
+      # Mapbox access token for route finder
+      MAPBOX_TOKEN="your_mapbox_access_token"
       ```
     - To generate VAPID keys for web-push, run:
       ```sh
@@ -164,6 +217,24 @@ To use these colors in your CSS:
     background-color: var(--primary-hover);
 }
 ```
+
+## API Endpoints
+
+The application provides a comprehensive RESTful API. Here are some key endpoints:
+
+- **Authentication**: `/register`, `/login`, `/logout`
+- **User Profile**: `/api/profile`
+- **Activities**: `/log-activity`, `/get-all-activities`
+- **Workouts**: `/api/workouts`, `/api/workout-templates` 
+- **Steps**: `/api/steps`
+- **Nutrition**: `/api/nutrition/meals`
+- **Notifications**: `/subscribe`, `/api/scheduled-notifications`
+
+For a complete list of endpoints with descriptions, please see the [Project Documentation](documentation.md#api-endpoints).
+
+## Documentation
+
+For detailed technical information, including API endpoints and architecture, please see the [Project Documentation](documentation.md).
 
 ## Contributors
 
